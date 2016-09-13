@@ -1,21 +1,38 @@
-#include "pcb.h"
+#include "../h/pcb.h"
 struct clist pcbFree= CLIST_INIT;            //Lista dei processi liberi
 struct pcb_t pcbs[MAXPROC];					//utilizzato per allocare la memoria necessaria
 
 /* ALLOCAZIONE E DEALLOCAZIONE DI PROCBLK
    ====================================== */
 
+   /*
+    * Set every byte from s to s+n to c.
+    * Returns a pointer to s.
+    */
+   void *memset(void *s, int c, size_t n)
+   {
+       unsigned char* p=s;
+       while(n--)
+           *p++ = c;
+       return s;
+   }
 
 //Mette in coda il processo puntato da p nella pcbFree.
 
-void freePcb(struct pcb_t *p){					
-	clist_enqueue(p, &pcbFree, p_list); 
+void freePcb(struct pcb_t *p){
+	clist_enqueue(p, &pcbFree, p_list);
 }
+
+
 
 
 //Rimuove un processo dalla pcbFree e ne ritorna il puntatore.
 
 struct pcb_t *allocPcb(){
+<<<<<<< HEAD:phase1/pcb.c
+	int i;
+=======
+>>>>>>> 3eef626d3e4e6bf2c72ad84c6a6016f6c37e6226:pcb.c
 	if (clist_empty(pcbFree)){					//Nessun processo libero
 		return (NULL);
 
@@ -23,13 +40,27 @@ struct pcb_t *allocPcb(){
 	struct pcb_t *p;							//Processo da allocare
     clist_head(p, pcbFree, p_list);
 	clist_dequeue(&pcbFree);
-    p->p_parent=NULL;
+
+    	p->p_parent=NULL;
 	p->p_cursem=NULL;
+<<<<<<< HEAD:phase1/pcb.c
+	p->p_pid=0;
+	//p->p_s=state_null; per fare questa operazione faccio la memset su p->p_s
+      memset(&p->p_s, 0, sizeof(state_t));
+	p->p_resource=0;
+	p->p_userTime=0;
+	p->p_CPUTime=0;
+=======
 	p->p_resource=0;
 	p->p_s=0;
+>>>>>>> 3eef626d3e4e6bf2c72ad84c6a6016f6c37e6226:pcb.c
 	p->p_list.next=NULL;
 	p->p_children.next=NULL;
 	p->p_siblings.next=NULL;
+	for (i=0; i<EXCP_COUNT; i++){
+		//p->p_excpvec[i]=state_null	; anche qui uso la memset
+            memset(&p->p_excpvec[1], 0, sizeof(state_t));
+	}
 	return (p);
 
 }
@@ -37,25 +68,26 @@ struct pcb_t *allocPcb(){
 
 //Inizializza della lista dei processi inutilizzati.
 
-void initPcbs(void){			
+void initPcbs(void){
 	int i=0;
 	struct pcb_t *p;
 	pcbFree.next=NULL;							//Serve per evitare conflitti nel caso ci siano residui in memoria
 	for (i=0; i<MAXPROC; i++){
 		p=&pcbs[i];								//Mettiamo nella coda dei processi liberi tutti quelli dell'array pcbs[]
-		clist_enqueue(p, &pcbFree, p_list);		
+
+		clist_enqueue(p, &pcbFree, p_list);
 	}
 }
 
 
 /*GESTIONE CODA PROCESSI
   ======================*/
-  
 
-//Vogliamo aggiungere il processo puntato da p alla lista di processi puntata da q.  
+
+//Vogliamo aggiungere il processo puntato da p alla lista di processi puntata da q.
 
 void insertProcQ(struct clist *q, struct pcb_t *p){
-	clist_enqueue(p, q, p_list);    
+	clist_enqueue(p, q, p_list);
 }
 
 
@@ -69,18 +101,18 @@ struct pcb_t *removeProcQ(struct clist *q){
 	p = clist_head(p, *q, p_list);				//Assegnamo un puntatore alla testa per poter ritornare l'elemento rimosso
 	clist_dequeue(q);
     return (p);
-    
+
 }
 
 
-//Rimuove il processo putato da p dalla lista puntata da q 
+//Rimuove il processo putato da p dalla lista puntata da q
 
 struct pcb_t *outProcQ(struct clist *q, struct pcb_t *p){
 	if(clist_delete(p, q, p_list)==0)			//la macro clist_delete ritorna 0 in caso la cancellazione sia andata a buon fine.
 		return (p);
 
 	return (NULL);
-    
+
 }
 
 
@@ -116,7 +148,7 @@ void insertChild(struct pcb_t *parent, struct pcb_t *p){
 
 //Rimuove il primo processo figlio di p dalla sua lista dei figli.
 
-struct pcb_t *removeChild(struct pcb_t *p){ 
+struct pcb_t *removeChild(struct pcb_t *p){
 	if(p->p_children.next==NULL)				// caso p non ha figli
 		return(NULL);
 
@@ -136,7 +168,7 @@ struct pcb_t *removeChild(struct pcb_t *p){
 
 //Rimuove il processo puntato da p dalla lista dei figli del suo genitore.
 
-struct pcb_t *outChild(struct pcb_t *p){ 
+struct pcb_t *outChild(struct pcb_t *p){
 	if(p->p_parent==NULL)					//caso p non ha genitore
 		return(NULL);
 
@@ -145,11 +177,6 @@ struct pcb_t *outChild(struct pcb_t *p){
 			return(removeChild(p->p_parent));						//... usiamo la removeChild
 
 		else{														//Altrimenti...
-			
-			//COMMENTO DI GIULIO -> Secondo me andava bene come avevamo fatto noi, infatti nelle specifiche c'è scritto di tornare NULL se non aveva il genitore, p altrimenti
-			//Quindi sostanzialmente non ci interessa se il genitore non ha come figlio p, basta separare p dal "padre"
-			//La mia considerazione è: può essere che la delete ci cambia il puntatore p e quindi quando restituiamo p non è p ma un altro puntatore??
-			
 			if(clist_delete(p, (p->p_parent)->p_children.next, p_siblings)){
 				return(NULL); //Penso si debba restituire NULL... sennò che altro?
 			}
@@ -158,6 +185,6 @@ struct pcb_t *outChild(struct pcb_t *p){
 				p->p_siblings.next=NULL; 								//scolleghiamo dal figlio
 				return(p);
 			}
-		}  
+		}
 	}
 }
