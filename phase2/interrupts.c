@@ -10,7 +10,6 @@
 
 cputime_t interStart; //mi sa che devo farla globale
 
-
 int device_numb(memaddr *pending){
 	int bitmap= *pending;
 	int devn;
@@ -34,20 +33,16 @@ int device_numb(memaddr *pending){
 void intHandler(){
 
 	state_t *retState;
-	/* Var definita due volte, tolgo questa e lascio quella sopra
-	cputime_t interStart; //mi sa che devo farla globale
-	*/
 	int cause;
 
-	//salvo il tempo in cui cominciamo la gestione
-	interStart = getTODLO();
+	interStart = getTODLO();	//salvo il tempo in cui cominciamo la gestione
 
 	/*Decremento pc all'istruzione che stavamo eseguendo  --> riguardare */
 	retState = (state_t *) INT_OLDAREA;
 	retState->pc = retState->pc - 4;
 
 	//salvo la causa dell'interrupt
-	cause = getCAUSE();
+	cause = CAUSE_EXCCODE_GET(retState->pc.CP15_Cause);
 
 	// Se un processo era in esecuzione
 	if(currentProcess != NULL){

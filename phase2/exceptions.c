@@ -75,7 +75,7 @@ void sysBpHandler(){
 	copyState(&currentProcess->p_s, sysBp_old);
 	
 	int cause = CAUSE_EXCCODE_GET(currentProcess->p_s.CP15_Cause);		//Prendo la causa dell'eccezzione
-	currentProcess->p_s.pc -= 4;	
+	currentProcess->p_s.pc -= 4;	//Giacomo ha fatto questa cosa, devo capire perchè
 
 	// Salva i parametri delle SYSCALL
 	unsigned int sysc = sysBp_old->a1;
