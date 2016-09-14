@@ -4,7 +4,7 @@
 #include <scheduler.h>
 #include <exceptions.h>
 
-#include </usr/include/uarm/libuarm.h>
+#include <libuarm.h>
 
 //HIDDEN state_t *sysBp_old = (state_t *) SYSBK_OLDAREA; //Cos'è???
 
