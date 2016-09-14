@@ -1,0 +1,1355 @@
+10/8
+
+Stiamo facendo la SYS3 e ci viene richiesto di vedere di quante risorse ha bisogno
+il primo processo bloccato, quindi noi abbiamo messo un campo
+in più nel pcb per salvare quante risorse chiede.
+Quando liberiamo risorse (weight > 0) usiamo la headBlocked per avere il
+puntatore al primo processo bloccato sul semaforo, controlliamo se le risorse
+richieste da questo processo sono meno o uguali a quelle che abbiamo appena
+liberato e, se questo è il caso, lo sblocchiamo {abbiamo tolto il cast che
+avevano fatto quelli dell'anno scorso, nel caso non funziona rimettiamolo}
+
+
+Per la sys3 usiamo la variabile/parametro currentProcess, questo ovviamente
+identifica il processo corrente che è stato inizializzato con la sys1 che è
+la createProcess. Quindi ora ci mettiamo a fare la sys1 (Olga vai a vedere la
+STST tra la documentaione di uArm)
+
+
+
+11/8
+
+Stiamo facendo la createProcess e dopo un lungo dibattito abbiamo deciso di
+fare il pid uguale a come lo hanno fatto gli altri, però a Olga non piace
+tanto questa idea.... Stiamo sempre a cambiare i cast da U32 a unsignd int
+se poi non funziona li ricambiamo. Notare che la SYSCALL ci mette per bene
+(si spera) lo stato del processore al momento attuale nel registro a2, che
+poi noi mettiamo in argv1 per usarlo nella nostra createProcess
+
+Vogliamo iniziare a fare il test quindi faccimo anche la SYS2
+(TerminateProcess). Nelle specifiche dice di terminare il processo chiamante
+quando la syscall è chiamata con parametro 0, che succede però se la
+chiamo con il mio stesso pid? Da errore? Funziona lo stesso?
+Qui i tipi fanno una cosa dello pseudoclock... noi ancora non vediamo niente
+di sta roba quindi lo abbiamo commentato.
+Non sappiamo bene se riutilizzando funzioni già fatte in exceptions.c
+le dobbiamo chaimare come SYSCALL o come una semplice funzione.
+Quando dobbiamo uccidere un processo, dobiamo toglierlo dalla lista dei figli
+dei suoi genitori. Cosa succede se il processo non ha genitori?
+Il caso corretto di un processo senza genitore è quando il processo è
+il primo processo creato (nel nostro caso il primo processo è il test),
+e dal test vediamo che per terminare correttamente il primo processo
+va sollevata una trap e non va usata la syscall terminateProcess, quidni
+va bene usare come caso di errore il fatto che la outChild dia NULL.
+
+Abbiamo provato a modificare velocemente il MakeFile perché volevamo
+iniziare un po a testarlo ma non avevamo ancora visto la scheduler quindi
+dobbiamo vedre prima lo scheduler e poi si può iniziare
+
+17/8
+
+Stiamo facendo lo scheduler, per ora diamouna passata veloce ma potremmo
+gestire i deadlock in modo diverso.
+
+Sara ha trovato un progetto dell'anno scorso che ha più snso di quello che
+facevamo prima, quindi ora copiamo da loro. Per ora l'idea che abbiamo preso
+è che se il current process != NULL noi lo mettiamo nella ready queue
+e poi mettiamo current process = NULL questo perché è lo scheduler che deve
+decidere se il processo che abbiamo ora è quello che dobbiamo eseguire, o ce
+ne è un altro che ha più diritto di lui a essere eseguito
+
+Siamo arrivate alla conclusione che Olga aveva ragione a non fidarsi di quelli
+da cui copiavamo prima u.u
+
+19/8
+SCHEDULER
+
+Lo scheduler che avevamo fatto insieme alla fine richiamava lo scheduler, ma
+secondo me non ha senso, lo scheduler va chiamato solo quando serve.
+
+Un processo viene messo nella coda ready quando:
+1- è appena stato creato e vuole iniziare il suo lavoro
+2- c'è stato un interrupt (quando finisci di gestire l'interrupt vai rimesso
+   ready
+3- Ho finito operazione i/o
+
+Quindi basta assicurarsi che ognuna di queste operazioni metta il current
+process nella coda ready e poi metta a null il processo corrente. Se
+lo scheduler è stato chiamato alla fine di una systemcall o qualsiasi
+altra operazione non bloccante allora il current process non sarà diverso
+da null e se quindi il timeslice non è ancora finito allora quel processo
+deve continuare a fare le sue cose, sennò se ne occuperà l'interrupt del
+timeslice (quello mandato dall'intervall timer) che metterà il processo in
+ready e current process a null per poi richiamare lo scheduler.
+
+Lo scheduler per prima cosa quidni vede se è finito il timeslise del
+processo, se non è finito ma entro con un currentProces==NULL (questo
+vuol dire che voglio prendere un nuovo processo dalla coda ready) allora
+devo settare un nuovo timeslice, se non era finito ma ho un processo
+che non aveva ragione di essere bloccto, metto l'interval timer alla
+fine del suo time slice (o pseudo clokck).
+
+
+AGGIUSTAMENTI
+
+Mi sono letta queste cose (http://stackoverflow.com/questions/1433204/how-do-i-use-extern-to-share-variables-between-source-files-in-c)
+che ti spiegano bene come usre le variabili globali quando hai tanti
+moduli, quindi ora sto mettendo le cose a posto seguendo la logica spiegata
+lì, perciò ho fatto un initial.h. Ora cerco di mettere ordine nell'initial.c
+per renderlo più coerente allo scheduler appena finito
+
+SYSTEMCALL
+
+Sto rivedendo le system call e ho trovato dei problemi nella createProcess.
+In primis, noi inizializziamo il processo con lo stato corrente del
+processore, ma questo è sbagliato, dovremmo inizializzarlo con il parametro
+passato come argomento, correggo facendo una funzione (definita in initial)
+che copia uno stato in un altro stato. (Mi sembra strano che non ci sia in uArm... RIGUARDARE)
+Devo vedermi un po' l'aritmetica dei puntatori perché proprio non capisco
+quando devo mettere e quando non mettere la &, è troppo complicato
+il lavoro per provare e sperare di aver fatto bene
+Io di solito penso in questo modo:
+&var ritorna l'indirizzo di memoria in cui è salvata var.
+Se var è un puntatore:
+- se vogliamo far riferimento all'indirizzo della cella di memoria a cui punta var,
+  basterà usare var così com'è
+- se vogliamo far riferimento al contenuto della cella a cui var punta,
+  bisogna usare *var (* operazione di dereferenziazione)
+Se var è una variabile è la stessa cosa se ci pensi:
+usare var da solo è come usare il contenuto di var, &var è l'indirizzo a cui è salvato il contenuto
+i puntatori sono solo un caso particolare in cui il contenuto della variabile è un indirizzo
+
+ASSEGNARE IL PID
+
+Ok, non capisco niente di come stiamo facendo i pid, quindi ho pensato di fare
+così:
+ Abbiamo l'array dei pcb attivi (active_pcb) e il pid del processo è il
+primo indice libero in quell'array. Poi salvo nella struttura dei pcb il
+pid, così se ho il pcb per recuperare il pid basta andare al campo dove
+salvi il pid, se ho il pid basta andare un active_pcb[pid] per trovare
+il pcb
+(possiamo provare un algoritmo un po' più complicato ma per ora a me piace
+questo)
+------------- 21/08 ------------------
+    (Ci avevamo pensato anche quando eravamo insieme e il problema era che ogni volta che
+    assegni un nuovo pid devi scorrere tutto l'array per trovare una pos libera,
+    comunque anche per me si può lasciare così e cambiare in seguito)
+--------------------------------------
+
+Ho fatto nelle exceptions.c una funzione (newPid) che calcola il nuovo
+pid e salva il processo nei processi attivi salvando il pid nel campo
+giusto, anche qui non so se con i puntatori ho fatto bene.
+
+------------- 21/08 ------------------
+    if (i >= MAXPROC) //ci sono più pricessi di quanti ne posso avere
+        PANIC();
+    Teoricamente non serve perchè se non ci fosse abbastanza spazio l'allocPcb
+    Avrebbe restituito NULL, però lo lascio     RIGUARDARE
+--------------------------------------
+
+Ho scoperto che ci stava un types definito dal prof che non avevamo
+ancora scaricato o visto dove nel pcb c'è lo spazio per il pid (-.-'')
+
+Nella terminate se passo 0 vuol dire che è il processo chiamante a uccidersi,
+e visto che il parametro è in teoria il pid del processo non posso usare 0
+come pid di nessun processo, quindi il pid dei processi saranno la
+loro posizione nell'array+1, quindi ricordati di fare pid-1 quando
+vuoi accedere al pcd dal pid
+
+
+REVISIONE TERMINATE PROCESS
+
+Sono andata a vedere nel pdf di fase due che ti dice di aggiustare il semforo
+se era negativo, MA dice di non aggiustarlo se il semaforo è un semaforo
+di device...ora, non capisco... i semaphori non si riferiscono solo ai
+device? Cosa mi sfugge?
+Ok, penso che volendo puoi usare semafori che non siano utilizzati per i
+device, ma : come faccio a capire se sono bloccato su un semaforo di
+device o qualunque altro semaforo?
+
+Ok, ho capito, non lo faccio ora perché devo uscire con mia cugina ma, pensavo
+che per vedere se un processo è bloccato su un device devo controllare
+se è bloccato in ognuno degli array dei semafori dei device, quidni
+pensavo di fare un array bidimensionale per i device così è più facile
+accedervi nel programma così che poi l'indice nell'array corrisponde alla
+linea dell'interrupt (leggiti bene come funzionano queste cose e
+aggiusta di conseguenza).
+Altra cosa che vorrei poter fare è salvarmi quante risorse ho chiesto non
+nel pcb, perché ora che ho trovato il pcb dove era già messo il pid
+sono non mi piace aggiungere cose al pcb
+
+20/8
+
+SEMAFORI
+
+Per i device abbiamo che ci possiamo accedere specificando la linea
+dell'interrupt a cui è collegato e a quale specifico device facciamo
+riferimento, quindi per quello che capisco ha senso fare un array di due
+dimensioni dove la prima dimensione indica la linea di interrupt (e per
+questo la grandezza è DEV_USED_INTS) e la seconda il device (e quidni di
+dimensione DEV_PER_INT). Ho fatto il +1 nella prima dimensione dell'array
+perché in teoria il terminal è visto come due diversi device anche se
+ancora non capisco bene come funziona questa cosa. Bisogna ricordarsi, però
+che (in teoria) con la line 3 tu vuoi accedere all'array con indice 0 (il
+semaforo del clock vuole la linea 2), quidni quando fai la sys10 vedi di
+ricordarti sta cosa.
+
+TERMINATE PROCESS
+
+Ho fatto una funzione per vedere se il semaforo è bloccato sul semaforo di
+device. L'ho fatta diventare void perché nelle nostre specifiche non dice
+di restituire niente e quindi io non restituisco
+
+SYS3
+
+Con sara ci chiedevamo dove vedere quante risorse voleva un processo e
+quindi li avevamo messi nei pcb, questa cosa non mi piace, per ora la lascio
+così ma pensavo di fare un semplice array dove salvarlo (indicizzato con i pid
+quindi dal pid del processo posso subito recuperare da quell'array quante
+risorse vuole)
+Questa non l'ho modificata, bisogna vedere se funziona con il test, se non
+funziona ci pensiamo lì
+
+
+SYSHANDLER
+
+Sto rivedendo l'intero hendler e noi avevamo fatto questa cosa strana
+mode= ((sysBp_old->cpsr & STATUS_SYS_MODE) >> 0x3);
+per vedere in che mode eravamo ma secondo me è sbagliato, secondo me
+basta fare & con la maschera impostata dalle costanti di davoli (che ho
+quello che ho fatto, poi vediamo facendo il test).
+Ok, più volte nelle specifiche ci dice di lavorare con lo user time e cpu
+time, ma non abiamo dove metterlo... (me ne sono accorta solo ora), dobbiamo
+aggiungere un altro campo nel pcb?
+Ok, voglio sapere come funziona la syscall perché non capisco: posiziona
+le cose nella old area e noi le dobbiamo recuperare da lì? dove sta scritto?
+Ho trovato questo scritto nel manuale di uarm:
+"Each time an exception is risen, the BIOS handlers will store the processor
+state before the exception into the proper Old area, perform other tasks where
+required (see sec. 2.5.2) and eventually load the processor state stored
+in the corresponding New area. The New areas must be filled with valid
+processor states pointing to kernel level exception handlers by kernel
+initialization stage."
+Forse è utile.
+Ho messo cosa fare nel caso si sia in user mode.
+Volevo fare anche l caso breakpoint ma centrava con la sys4, quindi provo
+a fare prima quella e poi torno a fare l'handler
+
+
+SYS4
+
+(ATTENZIONE! : qualsiasi modifica o errore trovato in questa funzione sarà
+anche nelle sys5 e sys6 perché ho fatto copia incolla e fanno praticmamente
+la stessa cosa)
+
+Non capisco quasi niente dalle specifiche. Ora cerco di popolare al newArea
+che mi dice lui nel modo che mi dice lui. Quanto mi da sui nervi che dice
+"il kernel fa questo" "il nucleo fa quello", che vuol dire?!?!? Io che devo
+fare quando implemento la syscall?!?!? TT__TT
+Questa è anche diversa da quelli di l'anno scorso quidni mi devo arrangiare.
+
+Ok, di questa ho scritto praticamente tutto quello che ho fatto nel codice.
+Sono stanca, per oggi basta (anche se le prossime due syscall dovrebbero
+essere praticmente uguali a questa)
+
+21/08
+
+
+Ho letto quel file di stack overflow e ho visto le tue modifiche a riguardo, però
+non hai toccato le cose di phase1, secondo me dovremmo mettere extern anche nelle
+dichiarazioni di quegli header sennò non siamo coerenti.
+------------------------------------
+	Si hai ragione, dovremmo aggiustare anche lì, ci avevo pensato ma ero troppo
+	stanca per farlo, dobbiamo correggerlo prima o poi u.u
+-----------------------------------
+
+Ho aggiunto commenti in mezzo ai tuoi appunti degli altri giorni, preferisci che
+io scriva sempre in fondo? comunque li ho messi tra righe di trattini così sono
+riconoscibili. Inoltre le cose su cui non ero sicura le ho affiancate da
+"RIGUARDARE" in modo che possiamo fare Ctrl+F e pensarci un attimo.
+--------------------------------------------
+	mi piace la cosa dei trattini, e alla fine se facciamo che lavoriamo in questo modo
+	e quidni ogni volto devo rileggere solo gli appunti di un giorno la cosa è
+	comodissima :)
+------------------------------------------
+Secondo me l'idea del campo nel pcb con il numero di risorse richieste era una
+buona idea anche se non mi piace che non ci sia in quello di davoli (anche se è
+probabile che non l'abbia messo solo perchè non voleva aiutarci troppo o perchè
+voleva farci pensare ai possibili modi di risolvere la cosa). Mi è venuto un dubbio:
+un processo può star fermo su più semafori? no, vero? perchè in quel caso il counter
+nel pcb sarebbe sbagliato.
+-----------------------------------
+	Abbiamo solo un campo cursem quidni ti puoi bloccare su un solo semaforo
+	alla volta
+--------------------------------
+Più ci penso e più mi convinco che un campo nel pcb sia la cosa migliore, in ogni
+caso dobbiamo sapere quante risorse richiedeva il pcb e avere una struttura ausiliaria
+ci costerebbe di più perchè dovremmo fare più accessi. L'unica alternativa plausibile
+sarebbe fare un campo aggiuntivo nel semaforo, però secondo me ha più senso nel pcb.
+-------------------------------
+	anche per me ha più sneso nel pcb ma forse riusciamo a pensare a qualche altra
+	soluzione
+-------------------------------
+
+exception.c
+    Per quanto riguarda la chiamata a copyState secondo me va bene come hai messo &.
+    A volte i pid erano rimasti definiti int, ho cambiato in pid_t.
+    Nell'handler delle sys non ho capito bene cosa fai in usermode, però dal pdf
+    di phase2 non ho capito neanche bene cosa deve fare il pgmTrap handler e ho
+    visto che lo chiami...
+---------------------------------
+	praticamete un programma utente piò usare le syscall (ne abbiamo fatti
+	tanti noi di es in c usando le systemcall) però essendo comunque istruzioni
+	che si devono fare in kernel mode quando un programma in user mode usa una syscall
+	si gnera una trap (interrupt generata dal programma) e la chiamta viene
+	passata quidni al gestore dei trap (che dobbiamo scrivere più avanti). In
+	teoria le copie delle oldarea varie che ho fatto servono appunto per fare
+	il passaggio della syscall, perché mi pare di aver capito che quando
+	chiami le syscall salvi le cose nella sysbp_oldArea mentre quando gestisci
+	le trap le cose vanno messe dei pgmTrap_oldArea
+---------------------------------
+
+    createProcess
+    chiamavi newPid con lo stato del processore, ho modificato e
+    ho messo come parametro il nuovo pcb
+
+    terminateProcess
+    termina il processo senza controllare che sia nella progenie del chiamante RIGUARDARE
+    possibili soluzioni:
+        1.scorrere il sottoalbero del currentProcess per vedere se il pid passato
+        per parametro è di uno dei suoi figli/nipoti
+	------------------------------
+		cosa cambia se il pid passato è di uno dei figli del currentProcess?
+		la funzione comunque lo elimina correttamente quindi non vedo il problema
+	------------------------------
+        2.fare in modo che un processo "veda" solo i pid del suo sottoalbero, ma come?
+    Ho controllato e quelli dell'anno scorso non lo fanno sto controllo. Uffa.
+	---------------------------------
+		questo dovrebbe servire per assicurarsi che il processo che chiama
+		la terminate non voglia terminare un processo di cui il
+		currentProcess è discendente?
+		Però non sarebbe un problema, nel caso si uccida il currentProcess
+		perché era figlio del processo che inizialmente il currentProcess
+		doveva uccidere, la funione funziona correttamente
+	---------------------------------
+
+    ho cambiato un po' i controlli per vedere se si tratta di suicidio in modo che
+    il pid venga modificato solo se gli passiamo 0 come parametro, però il tutto
+    è poco leggibile quindi vedi tu che versione tenere, quella vecchia sta lì
+    commentata.
+-----------------------------------
+	a me sembra abbastanza leggibile, alla fine è solo un controllo in più,
+	quindi per me si può lasciare così
+------------------------------------
+ Per vedere se è bloccato su un sem di Device quelli dell'anno
+    scorso hanno fatto una funzione che sembra carina ma usa devSem che non so dove
+    sia definita RIGUARDARE. Ah, ho appena visto che l'hai messa anche tu in exeptions.
+    Ho cominciato a scrivere una funzione walk, per scorrere il sottoalbero di un
+    processo, forse ce l'ho fatta, riguarda anche tu quando hai tempo, non è una
+    cosa urgente. Ci ho messo un sacco perchè ho dovuto riguardare come funzionavano
+    le cose di phase0 e come le avevamo usate nella phase1, però credo di esserci
+    riuscita.
+--------------------------------------
+	perché dovrebbe servire?
+---------------------------------------
+
+********||Parte di Olga||************
+
+L'hai gardata un po' la sys4? Io vado avanti con le altre poi aggiornami se trovi qualcosa
+che non ti torna su quella u.u
+
+SYS5/SYS6
+
+Queste sono praticamente uguali alla sys4 quindi tutte i dubbi su di quella rimangono
+anche qui, io però faccio copia e incolla e modifico solo le cose che devo modificare
+quidni se scopriamo che la sys4 è sbagliata lo saranno anche queste due
+
+SYS7
+
+Allora dice che l'oldArea del Pcb (che suppongo deva essere recuperata dall'array che
+ho usato anche per le SYS4-5-6) deve essere caricato, ora, dove deve essere caricato?
+Io lo carico sia sia in p_s del pcb corrente che nel processore vero e proprio e commento
+quello del pcb perché nelle specifiche dice che solo il nucleo conosce i pcb.
+L'ho fatta troppo subito, secondo me c'è qualcosa che non ho capito u.u
+
+SYS8
+
+Ecco che iniziamo con lo user Time e company, quidni penso prorpio che va messo nel pcb,
+vado a modificare le strutture, spero di non dimenticarmene qualcuna (p.s. abbiamo due
+types.h: una è quella nostra e una e quella del prof, io le modifico entrambe).
+Ora, noi facciamo iniziare lo userTime e il cpuTime nello scheduler quando si sceglie il
+processo a cui tocca partire (usiamo una variabile ce si prende lo start time di entrambi),
+quidni quando al processo si toglie la cpu dobbiamo aggiornare il valore. Per il tempo in
+user mode, questo finisce anche quando faccio una systemcall (che è fatta ovviamente in
+kernel mode) quindi all'inizio l'handler si occupa di settare bene il tempo utente, mentre
+l'intervallo per la cpu va aggiornato quando al processo viene tolto il controllo,
+e questo succede quando avviene qualche interrupt quidni per aggiornare quel valore ci
+pensa l'handler degli interrupt ad aggiornarlo per bene e quindi a quello ci penserò
+quando farò l'handler degli interrupt. Per ora per restituire il globalTime che
+vuole questa funzione basta prendere il tempo di ora e il tempo salvato in
+currentProcess->p_CPUtime e calcolare l'intervallo.
+Una cosa: tu processo, quando finisci il tuo timeslice esci dal processore, ma il tempo
+che passi nel processore va considerato come quello totale che passi nella cpu (quindi
+la somma di tutti i time slice) o solo il tempo che hai occupato continuamente la cpu?
+
+
+SYS9
+
+Dobbiamo bloccare il processo che chiama nel semaforo del clock, quidni uso la insertBlocked
+con come indirizzo l'indirizzo del semaforo dello pseudoClock. Visto che è comunque
+un semaforo e io mi sto bloccando sul semaforo faccio anche una -1 sul semaforo, ma non so
+se la devo effettivamente fare...io lo faccio u.u
+Poi dice che le cose su questo semaforo vengono sbloccate automaticamente dal nucleo ogni
+100 millisecondi....ora, questo lo gestiremo con gli interrupt? oppure dobbiamo farci un
+altra cosa che ogni 100 millisecondi ha il solo scopo di sbloccare i processi nel semaforo
+dello pseudo clock? Per ora non lo so, secondo me ci vuole un interrupt però non so bene
+come gestirlo. Però tanto gli costava mettere due timer così uno lo usavi per il time
+slice e uno per i 100 millisecondi? bah, forse bisognerà ritornare su questo e vedere
+se nel modo in cui abbiamo fatto lo scheduler ti assicura che ci sia un interrupt ogni 100
+millisecondi
+
+SEMAPHOREOPERATIONS
+
+Una cosa che non mi torna è perché per sbloccare il processo non controlliamo il
+nuovo valore del semaforo invece di vedere il peso, mi ricordo che ne avevamo discusso, per
+ora ho messo un || ma secondo me si potrebbe controllare direttamente il semaforo
+eliminando completamente il peso, però ricordo che centrava qualcosa con le specifiche.
+Però se controlliamo solo il peso potremmo avere questa situazione: ho un processo bloccato
+che vuole 3 risorse. Il semaforo è a -3. Arriva un processo che libera 2 risorse
+quindi 2<3 non possiamo liberare il processo bloccato, il semaforo diventa -1. Arriva un
+altro processo che libera 1 risorsa e quindi il semaforo è 0 e quindi potrei poter liberare
+il primo processo in coda ma per come lo abbiamo fatto noi visto che 1<3 non lo possiamo
+liberare. Ancora mi è sorta una domanda: noi inizializziamo i semafori a 0 quidni quando
+prendo risorse la prima volto io posso fare anche -100, va bene? Questo in realtà penso
+che dipende perché per l'i/o mi dicono le specifiche ne posso chiedere solo una alla volta
+quidni magari gli altri semafori funzionano diversamente. E quindi qui mi sale un altro
+dubbio: se voglio 3 risorse le posso prendere anche se il semaforo è 0 o devo aspettare
+che il semaforo si 3? Sono confusa.
+
+Altra nota: per come abbiamo fatto noi la funzione abbiamo che le risorse le assegnamo
+tutte insieme, ovvero se il processo chiede 5 risorse ma ce ne sono solo 3 libere lui
+si blocca. Non credo sia sbagliato ma dobbiamo sapere che succede
+
+Sono andata a aggiustare il timer, perché se ci blocchiamo su un semaforo non sto usando
+più la cpu quidni devo aggiornare il cputimer
+
+Ho trovato questo nella mailing list. Secondo me, per come lo abbiamo fatto noi il
+problema non si pone, secondo te?
+
+	2. Nel paragrafo 3.7.4 "Process Termination" della documentazione di fase 2, c'e' scritto:
+		"If the value of a semaphore is negative, it means that some processes (of
+		wich the ProcBlks are blocked on that semaphore) have requestes a number
+		of resources. Hence if a terminated process is blocked on a semaphore,
+		the value of the semaphore must be adjusted. "
+
+	In questo caso, oltre a sistemare il valore del semaforo è anche necessario risvegliare (eventualmente) i processi bloccati su di esso richiamando una semaphore operation?
+
+	2. dipende, se il processo aveva gia` ottenuto un quantitativo di risorse
+	sufficienti a sbloccare il successivo allora ha senso che questo venga sbloccato,
+	ma se si termina un processo a meta` della coda di attesa di un semaforo,
+	questo non ha ancora certamente ricevuto nessuna risorsa, quindi bisogna soltanto
+	sistemare il valore dell'intero relativo al semaforo.
+
+Ora mi è venuto un dubbio sulla terminate: se terminiamo un processo mentre sta lavorando
+con risorse di un semaforo, dovremmo liberare quelle risorse, come facciamo? Forse ci
+pensa la sys10, ora vedo u.u
+
+
+-----------------------------------------------------------------------------
+Domande:
+- come si comporta la var pseudoClock? Ho visto che la dichiarazione sta in initial
+e poi la modifichiamo nello scheduler, però non mi è chiaro
+
+---------------------------------
+lo pseudoClock è un semaforo, si comporta come i semafori normali
+----------------------------------
+
+- per quanto riguarda i device ho trovato cose interessanti su const.h
+        // interrupt handling related constants
+
+        #define CAUSE_IP_MASK          0xff000000
+        #define CAUSE_IP(line)         (1U << (24 + (line)))
+        #define CAUSE_IP_BIT(line)     (24 + (line))
+
+        // device starting interrupt line
+        #define DEVINTBASE	3
+
+        // device register length
+        #define DEVREGLEN 	4
+
+        // interrupts available for registers
+        #define DEVINTUSED 	5
+
+        // devices per interrupt line
+        #define DEVPERINT	8
+
+        // device type codes
+        #define NULLDEV	0
+        #define DISKDEV	1
+        #define TAPEDEV	2
+        #define ETHDEV 3
+        #define PRNTDEV 4
+        #define TERMDEV 5
+
+        // interrupt line offset used for terminals
+        // (lots of code must be modified if this changes)
+
+        #define TERMINT	4
+
+        // returns the sign bit of a word ------> questa roba non so se ci serve e non ho capito cosa sia
+        #define SIGNBIT(w) (w & SIGNMASK)
+
+- e anche su arch.h
+ 	/*
+         * Interrupt lines
+         */
+
+        #define N_INTERRUPT_LINES   8
+
+        #define N_IL                N_INTERRUPT_LINES
+
+        /* Number of interrupt lines available to devices */
+        #define N_EXT_IL 5
+
+        /* Devices per interrupt line */
+        #define N_DEV_PER_IL        8
+
+        #define DEV_IL_START        (N_INTERRUPT_LINES - N_EXT_IL)
+
+        #define IL_IPI              0
+        #define IL_CPUTIMER         1
+        #define IL_TIMER            2
+        #define IL_DISK             3
+        #define IL_TAPE             4
+        #define IL_ETHERNET         5
+        #define IL_PRINTER          6
+        #define IL_TERMINAL         7
+
+        #define EXT_IL_INDEX(il)    ((il) - DEV_IL_START)
+
+        #define INT_DEV_VECTOR(il)	(0x6FE0 + (EXT_IL_INDEX(il) * 4))
+
+- perchè hai fatto quell'array dei devices? Ho letto i tuoi appunti dei 20/08
+ma non capisco a che ci serve di preciso
+
+- che significa linea di interrupt?
+
+
+SYS10
+
+Non ho capito niente, o meglio non trovo le cose, uff sono stanca, la vedo domani
+
+SYS11
+
+Semplice e intutitiva, nietne da dire
+
+22/08
+
+Nel test quando si creano i semafori sono dei semplici interi, diventano
+delle vere e proepire strutture nel momento in cui faccio la insertBlocked
+(vedi codice in asl)
+
+
+SEMOP
+
+Abbiamo risolto il dubbio del peso aggionrando le risorse di cui abbiamo
+bisongo nel primo processo bloccato
+
+SYS4/5/6
+
+Per la cosa dei flag forese il flag è un intero e il flag[1] (ecc) delle
+specifiche si riferisce a "primo bit del flag, secondo bit" (ecc).
+Questo va messo in cpsr vedi se c'è quanlche funzione già fatta
+per settare quel registro
+
+SYS10
+
+Per Sara: quello degli americani non ci sere perché è come quello dell'anno
+scorso, c'è un flag, non c'è questa cosa strana nostra, quindi sono di nuovo
+non sapendo che fare
+
+Ok, con l'aiuto di Giacomo sono arrivata alla conclusione che non può far
+altro che con "bit più significativo" vuol dire che in a4 ci sarà scritto
+qualcosa del tipo 10000xxx oppure 00000xxx, quindi ho fatto questo:
+
+if ( dnum & 0x10000000 ) {
+		dev=N_EXT_IL+1;
+		dnum= dnum & 0x10000000;
+	}else{
+		dev=intlNo-DEV_IL_START;
+	}
+----------------------------------------------------
+if ( dnum & 0x10000000 ) { // vero sse il bit più significativo era acceso, giusto?
+----------------------------------------------------
+
+che praticamente vede se il bit più significativo di dnum è a 1 allora
+devo leggere dal terminale (e ho deciso che è l'ultimo nel nostro array
+di semafori)e poi non so se posso fare  dnum= dnum & 0x00000111; ma
+praticamente visto che il dnum deve essere un numero da 0 a 7 se c'è l'uno
+nel più significativo allora devo cambiarlo e farlo tornare a essere un
+numero da 0 a 7. L'else ci sta perchè il nostro array inizia da 0 e per come
+sono le linee dell'interrrupt nei device noi usiamo solo da 3 a 7, quidi
+il ramo else è fatto per aggiustare questa cosa
+
+Ora dovrei andare a scrivere sui registri ma non  sino sicura che vada bene
+come lo vado a fare ora (perché questa sys call ce l'ha fatta così
+complicata??? L'anno scorso era più semplice TT__TT)
+
+La struttura dei registri dei device la troviamo in uArmtypes
+
+Non so bene se con una read devo scrivere nel registro del recive o del
+transmit... penso recive perché per leggere qualcosa devo averla ricevuta
+
+Ok, non so che altro fare e soprattutto come farlo, comunque questa
+dovrebbe essere fatta dopo aver uninterrupt (credo?), più ci sto e più
+non la capisco. Ho deciso che è meglio andare avanti e lavorare con gli
+interrupt così magari vediamo bene come funzionano quelli e poi tornarci
+
+23/08
+Secondo me quello che quelli degli anni scorsi facevano nell'interrupt handler
+noi dobbiamo farlo nella sys10. Sto cercando info a riguardo nei vari manuali.
+Non riesco a trovare la definizione dei registri dei dispoditivi e dei terminali,
+dove sono? Mi serve per capire il tipo dei campi.
+
+Ogni device ha 5 linee di interrupt disponibili.(N_EXT_IL=5)
+
+Five words, from 0x20 to 0x30, show the status of active devices. Each word
+represent a device line:
+0x20 Disks
+0x24 Tapes
+0x28 Netwok
+0x2C Printers
+0x30 Terminals
+
+For each device line, if a specific device i is enable, i th bit in representing
+word has value 1.
+
+ ---> Dobbiamo controllare se il device è attivo?
+
+ 2.1.6 Pending Interrupt Bitmap
+Most of the interrupt lines are shared through all the devices of the same class,
+to identify which device is requesting for interrupt there are five registers from
+address 0x6FE0 to 0x6FF0 that hold a bitmap of interrupting devices per inter-
+rupt line.
+14This region is organized exactly as the Installed Device Table:
+0x6FE0 Disks
+0x6FE4 Tapes
+0x6FE8 Network
+0x6FEC Printers
+0x6FF0 Terminals
+For each word, i bit is set if i th device on that line is requesting for interrupt.
+
+Nel manuale dice:
+    Interrupt lines 3-7 are used for external devices. Interrupt lines 0-2 are for internally
+    generated interrupts. Lines 0-1 are present for future multiprocessor support, but
+    currently unused.
+
+Quindi secondo me la sys10 la chiama l'interrupt handler come dicevi tu.
+Se arriva in interrupt dalle linee 0-2 l'interrupt handler fa le sue cose, altrimenti
+chiama la sys 10.
+
+Il manutale dice:
+    Given an interrupt line (IntLineNo) and a device number (DevNo) one can compute
+    the starting address of the devices device register:
+    devAddrBase = 0x0000.0040 + ((IntlineNo - 3) * 0x80) + (DevNo * 0x10)
+
+DEV_REG_ADDR serve per calcolare l'inizio del registro di device. sta in arch.h
+
+Sto seguendo passo passo il manuale di uarm, in particolare il capitolo 5 che
+spiega come i device ricevono/trasmettono cose.
+In pratica tutto sta nell'accedere ai campi dei registri di dispositivo ma dato
+che non ho trovato la loro definizione ho usato dei puntatori ad unsigned int.
+Al massimo basterà cambiare il loro tipo successivamente.
+Quello che non mi è chiaro è che le operazioni sui device potrebbero (e forse
+dovrebbero) essere fatte dall'interrupt handler, quindi perchè questo dovrebbe
+chiamare una sys call per farle? Ci hanno detto di impostare il sistema così solo
+per complicarci la vita o tutto ha un senso? Non so, ho la sensazione che mi stia
+sfuggendo qualcosa... (Mi sembra di scrivere un libro giallo xD RISOLVIAMO IL MISTEROOO)
+
+Pensandoci può essere che vogliano l'interrupt handler si occupi di scegliere
+l'interrupt da gestire, secondo le regole di priorità. Quindi la sys si occuperebbe
+solo di fare ciò che l'interrupt handler ha deciso. Ha senso, credo.
+
+
+26/08
+
+
+
+BREAKPOINT
+
+Le specifiche non dicono niente sul controllare o meno il mode con cui lo chiamo (user o
+kernel) quindi per ora non faccio controlli di questo genre
+Qui c'era un errore nelle specifiche, dovrebbe essere
+
+	"the lower 4 bits of SYS/Bp Old Area’s cpsr register are copied in the most significant
+	 positions of ProcBlk SYS/Bp New Area’s a1 register."
+
+e non
+	"the lower byte of SYS/Bp Old Area’s cpsr register is copied in the higher byte of
+	 ProcBlk SYS/Bp New Area’s a1 register"
+
+Questa cosa però non la so fara. Sara, qualche idea?
+
+Tutto quello che ho fatto però è praticamente quello che dicono le specifiche quasi parola
+per parola
+
+TRAP E TLB HANDLER
+
+fanno praticamente la stessa cosa che fa il brack point, quidni pensavo di fare una funzione
+che decide quale handler usare (come hanno fatto gli altri)
+Ora la scrivo tutta, ma probabilmente si può fare qualcosa.
+
+-----------------------------------------
+Si potrebbe fare una funzione unica ma dato che non ce lo specifica per ora pensiamo a finire
+ci penseremo quando sapremo che tutto funziona
+-----------------------------------------
+
+Non sono molto sicura di come gestire il prendere la causa per la trap... metto due modi
+diversi: uno è come lo hanno fatto quelli da cui copiamo per le sysCall l'altro è quello
+che è venuto in mente a me: prendo il registro di causa dove dovrebbe essere effettivamente
+messa la causa (pgmTrap_old->CP15_Cause) e lo uso come parametro della macro. Faccio così
+perché viene fatti tipo un'operazione bit a bit come corpo della macro, quindi forse a senso.
+Non so, questo è da provare e vedere cosa succede
+
+(per il tlb handler anche le specifiche sono esattamente copia incolla del trap (e penso che si
+sia anche dimenticato di cambiare un trap in tbl, spero sia un suo errore di battiture snnò non
+avrebbe senso)
+
+In teoria (credo) in tutti gli handler dovrei andarci solo in kernel mode quindi all'inizio
+della gestione della cosa stoppo lo user time del processo
+
+-------------------------27/08----------------------------------
+Mi devo riguardare come funziona il tempo in un processo. Siamo noi ogni volta che dobbiamo
+modificare i campi del procBlock giusto? Il fatto che tu dici di stoppare il tempo
+è perchè gli assegni il tempo all'inizio della funzione e non alla fine?
+Perchè la cosa più intuitiva che veniva da fare a me era:
+salvare il tempo in cui entriamo
+fare tutte le operazioni
+e fare userTime = userTime - ( getTODOLOW() - tempo in cui siamo entrati )
+In questo modo allo userTime sottrae il tempo che abbiamo passato nella gestione della syscall
+questo perchè nella mia testa userTime e GlobalTime si incrementano da soli con il clock ma non
+è così, vero?
+
+------------------------------------------------------------
+
+INTERRUPT HANDLER
+
+Inizio a vedere l'interrupt handler.
+
+Le specifiche dicono che la il numero della linea dove pende l'interrupt è salvato in
+CP15_Cause.IP, e uso la macro CAUSE_IP_GET(cause, int_no) perché la descrizione di
+questa macro è : " Returns 1 if the interrupt int_no is pending"
+Ora, suppongo che come prendiamo la causa vada bene (infondo anche gli altri hanno fatto
+così, però mi da un po' fastidio perché le cose sono così poco chiare, devi praticamente
+provare a indovinare per tutto). Comunque la cosa che interpreto io è: "ti da 1 se la causa
+è la linea di interrupt int_no"... però boh, ora mi vengono i dubbi sul se ho usato bene le
+altr cause... poco chiaro, poco chiaro.
+
+Ora vedo perché vogliamo distinguere il time-slice dallo pseudo clock: l'interrupt di uno
+e dell'altro fanno cose diverse.
+Infatti questo è il momento giusto di "svegliare tutti i processi" come dicevano le specifiche
+	("Each process waiting on this semapgore is unlocked every 100 milliseconds
+	automatically by the nucleus").
+Vado a modificare lo scheduler appropriatamente
+
+Sto prendendo come guida il codice dei soliti e ho notato che il loro interrupt di pseudoclock
+non ferma il processo attuale. Se arriva l'interrupt di pseudoclock, devo o non devo fermare
+il processo attuale, metterlo in coda e far partire il prossimo? Forse no, perché poverino, non
+è giusto che venga portato via dal suo timeslice senza che faccia i/o o cose del genere
+
+-------------27/08----------------
+Per me no.
+Comunque ho letto nei commenti che volevi mettere la setTimer appena prima di caricare il nuovo processo
+ho provato a mettere un controllo sul timer in uso ma dato che non ho studiato bene come funziona
+il tempo sentiti libera di portare le cose com'erano prima se quello che ho fatto non ha senso.
+------------------------
+
+Io praticamente voglio copiare quando posso, ma ora mi è sorto un dubbio: posso avere più di
+un processo bloccato contemporaneamnte nello pseudoClock? Perché i tipi usano il while,
+ma non penso che più di un porcesso possa essere bloccato sullo pseudoclock.
+Nel caso ci possano essere più di uno di processi bloccati,(perché effettivamente abbiamo
+una waitClock che ti blocca sullo pseudoClock), come facciamo? La nostra semaphorOperation
+sblocca i processi solo quando il semaforo diventa >0. Se togliamo il controllo che dopo il
+cambio il semaforo debba essere >0 funziona. Infatti se libero 1 e il semafore è < 0 ma la
+risorsa richiesta dal primo processo in coda è 1, allora lo posso sbloccare e in questo modo
+potrei fare il while per sbloccare tutti i processi bloccati nello pseudoClock.
+La cosa è data anche da questa frase :
+	"Each process waiting on this semapgore is unlocked
+	every 100 milliseconds automatically by the nucleus."
+Quell'each vuol dire "ognuno dei processi che sono bloccati ORA vanno sbloccati tutti insieme
+allo scadere dei 100 millisecondi" oppure vuol dire "ogni volta che un processo si blocca su
+questo semaforo esso verrà sbloccato allo scadere dei 100 millisecondi"?
+Sara, rifeltti su questa cosa e dimmi a che conclusione arrivi, forse va visto come lo usa
+nel test per capire se è possibile avere più di un processo.
+Ho appena trovato questa frase:
+	"A SYS3 operation on the pseudo clock should unlock all the waiting processes."
+Che mi sembra implichi che possa esserci più di un processo. [Altro piccolo dubbio, con
+"waiting processes" intende quelli che aspettano solo lo pseudoClock o anche tutti gli
+altri processi che aspettano? Penso solo quelli dello pseudoClock, però chiedere conferma
+non fa male]
+Conclusione: secondo me ci possono essere più processi nello pseudoClock, quindi lascio il
+while però non vado a cambiare il controllo nella semaphoreOperation, per fare quello voglio
+prima la tua opinione.
+
+--------------27/08--------------------
+Anche secondo me ci può essere più di un processo che aspetta perchè
+teoricamente lo pseudoClock serve anche (o solo?) per mantere l'allineamento dei processi
+nel tempo. Quindi allo scadere dei 100 millisecondi li sblocchiamo tutti.
+("A sys3 operation on the pseudo clock should unlock all the waiting processes")
+Mi viene un dubbio, togliere quel controllo cambia il comportamento della sys3 anche
+quando la chiamiamo per gli altri semafori... Non è che ci incasina tutto toglierlo?
+Solo che al momento non mi viene in mente altro modo di sbloccarli tutti.
+---------------------------------------
+
+Non capisco molto cosa fa per i device di i/o.... dovremmo vedere se c'è stata la sys10 e
+ovviamente, come il resto delle cose, le specifiche sono ambigue. Ho deciso di interpretarlo
+così: se il semaforo associato all'interrupt è negativo allora sblocco il processo bloccato
+(anche qui c'è sempre il fatto che se è possibile che più di un processo è bloccato sullo
+stesso sempaforo dobbiamo togliere quel controllo)
+Uso la macro   CDEV_BITMAP_ADDR(line)  per vedere esattamente su quele device sono fermo,
+ma non sono sicura di averlo fatto bene.
+Dice poi che dobbiamo mettere lo stato del registro di i/o nell'a1 del processo appena
+sbloccato. Come recupero il processo bloccato?
+2 casi:
+	-sblocco con la semaphoreOperation e modifichiamo quest'ultima in modo che ritorni
+	un puntatore al processo bloccato
+		---------27/08-------
+		Non penso che possiamo decidere noi cosa ritorna la semaphoreOperation
+		---------------------
+	-sblocchiam il processo a mano qui nel gestore
+Non so che fare quindi mi è venuto di fare una via di mezzo (vedi codice). Qui dico solo che
+presuppongo che il processo che sblocchiamo è quello in testa alla coda dei processi bloccati,
+sono troppo stanca ora per vedere se è giusto ma dovrebbe essere così.
+Mi è venuto un dubbio: per il registro dei device dovrei fare una variabile puntatore o solo
+la variabile? Per ora la faccio solo variabile, sono troppo stanca per pensare altro, Sara se
+ce la fai vedi tu se si dovrebbe fare l'uno o l'altro.
+
+Scusa Sara, ora sono troppo stanca, ti lascio a questo.
+NOTA: ho fatto una funzione a parte per i device perché i device (che non sono terminali)
+fanno tutti la stessa cosa quindi poi nell'interrupt handler andrà richiamata questa
+funzione per ogni device.
+
+Cose che ci sono ancora da capire che non ho capito: che fa l'interrupt handler quando non
+c'era stata una richiesta di sys10 prima di alzare l'interrupt?
+-------------------------
+Può accadere?
+-------------------------
+Cosa si fa nel caso del terminale? Come distinguo tra lettura e scrittura?
+
+p.s. scusa se c'è qualche incoerenza sono davvero stanca
+
+27/08
+
+Ho guardato le cose che hai fatto e mi sembra vada tutto bene.
+La maggior parte dei tuoi dubbi secondo me deriva dal fatto che non si capisce bene
+come dovremmo usare questa sys10.
+La mia idea è che l'utente chiama la sys10 dicendo cosa vuole fare e su che terminale.
+La sys10 vede che device è, imposta il suo registro e chiama l'Interrupt Handler
+L'interrupt handler
+- manda un ACK a chi l'ha chiamato (vedi primo pallino elenco pag 10 phase2)
+- fa una sys3 sul semaforo corrispondente al device. Magari nella sys3 possiamo mettere
+  un controllo in modo che:
+  se il semaforo chiamato è quello dello pseudoClock e il weight e 1
+	sblocchi tutti i processi fermi su quel semaforo e li metti nella readyQueue
+  altrimenti
+  	fai la sys3 come scritta fin'ora
+
+  che ne pensi?
+
+La tua funzione intDev se ci pensi fa quello che fa anche la sys10, quindi secondo me
+non è necesaria però mi piacciono queste operazioni per salvare lo status:
+	unblck_proc = headBlocked(sem);
+	semaphoreOperation(devices[int_no-DEVINTBASE][devnumb],1); //device starting interrupt line DEVINTBASE = 3 --> const.h
+	unblck_proc->a1=devReg.status; //il primo è un puntatore, il secondo una struct quindi -> . dovrebbero andare bene
+quindi secondo me andrebbero fatte alla ricezione di un interrupt da una linea di device.
+
+Non mi torna in che modo l'interrupt handler possa avere più interrupt pendenti,
+comunque ora sono le 10.40 e stamattina volevo anche fare un esame, io propongo di sentirci
+appena puoi per fare un po' il punto della situazione e chiarirci i dubbi sul tempo e sugli
+interrupt e la loro gestione che sono un po' i nostri punti critici.
+Un'altra cosa che dobbiamo fare assolutamente è cambiare il nome alla dir!
+
+28/08
+Mi sono letta ancora una volta il manuale ma non ho trovato niente di interessante sul tempo.
+Però proprio in fondo ho trovato:
+8.3 Hints
+When writing Exception Handlers code, it is well advised to pay attention to the Program
+Counter value stored in the Old Area. As described in Exception Handling section, each
+exception leave a different value in Link Return register and this value is automatically
+moved to Old Area.pc from low level exception handlers, so, for example, when handling
+an interrupt, the Old Area.pc has to be decreased by 4 to point to the right return
+instruction.
+Quindi è per questo che gli altri facevano -4!!
+
+exceptions.c
+Trovato possibile errore nella onDev, semAddr non è definito, si intendeva p->p_cursem?
+--------------------------------------------
+      hai ragione, però p_cursem punta all'intera struttura del semaforo
+       o al campo s_semAdd? Ho supposto puntasse alla struttura quidni ho messo
+       pcb->p_cursem.s_semAdd, come al solito non sono sicura sul mio utilizzo
+       dei puntatori
+-----------------------------------------------
+--------------------------------------------
+    Sostituito pcb->p_cursem.s_semAdd con pcb->p_cursem->s_semAdd dato
+    che il campo p_cursem è di tipo puntatore a struttura.
+    Nel cercare questa cosa ho visto che la definizione di struct semd_t
+    sta in asl.c ma non dovrebbe essere in asl.h o in types? come fa a funzionare
+    se la usiamo anche da altre parti senza includere asl.c?
+--------------------------------------------
+
+interrupt.c
+Ho visto che quando sbloccavi i processi nello pseudoclock facevi una sys3 con valore 1.
+Ragionando ho pensato in questo modo:
+La waitForClock mette in coda i processi nel semaforo dello pseudoClock e decrementa il sem
+di 1. Ciò significa che se abbiamo 10 proc che hanno chiamato la sys9, il semaforo pseudoClock
+vale -10. Chiamando solo una volta la sys3 con valore 1 ne sblocca solo 1 di processo.
+Ho scelto di modificare la sys3 in modo che quando viene chiamata con peso positivo sullo
+pseudoClock sblocca tutti i processi fermi su quel semaforo e mette il semaforo a 0.
+
+Non avevo notato che tu avevi fatto un ciclo nell'interrupt handler che chiamava tante sys3
+quanti erano i processi bloccati (guardia del ciclo pseudoclock < 0). Devo leggere più con calma il codice -.-
+Comunque preferisco lasciare il controllo e il ciclo nella sys3 perchè nelle specifiche dice
+"A sys3 operation on the pseudoclock should unblock all the waiting processes".
+
+Sono le 10.50 e come ieri devo fare esami, volevo mandare una mail (ne avevamo parlato giorni
+fa) ma ho cercato sul quaderno per vedere cosa dovevo chiedere e avevo scritto solo "Mandare mail"
+Tu ti ricordi cosa dovevamo chiedere?
+Comunque ho trovato degli appunti presi durante le lezioni, in particolare mi preoccupa questo:
+"Attenzione a mantenere i semafori FIFO. Esempio
+A richiede 3 risorse, il sem ne ha solo 2, non gliele do e aspetta.
+B richiede 1 risorsa, il sem ce l' ha ma NON gliela do perchè c'è A che aspetta!"
+
+I nostri semafori funzionano così?
+Appena hai finito di leggere scrivi che così guardiamo insieme le cose che ti dicevo ieri
+
+
+-----Olga---------
+
+Tra poco ti scrivo ma per ora rispondo alle cose già qui.
+
+Per quanto riguarda il tempo, questo non si aggiorna automaticametne ma funziona ad
+intervalli, infatti appena un processo è scelto come il processo da eseguire
+faccio partire il conteggio del suo userTime (parlo solo di userTime, ma vale
+più o meno uguale anche per il global/cpu time) salvando quel momento come
+userTimeStart. Appena non sono più in userTime, quindi ad esempio all'inizio
+della gestione di sistemcall, prendo quel tempo (chiamo time_end) come tempo  di fine dello
+userTime e quindi salvo nel campo per il tempo del processo lo time_end - userTimeStart
+
+Ho rimesso il timer come era prima perché ho avuto una (forse) rivelazione:
+nei casi in cui il currentProcess è NULL, ci capita che ci fermiamo li avvolte,
+però noi vogliamo che comunque, sempre, ogni 100 millisecondi scatti l'intervalTimer
+e per questo va settato prima di fare i controlli, se lo mettiamo dopo ci sarabbe
+troppo ritardo. (per capire di cosa parlo vedi pure la risposta del prof alla mailinglist)
+Questo però è una cosa su cui bisogna pensare di più
+
+Per quanto riguarda il "si può avere interrupt senza fare prima la sys10?", secondo
+me si, un po' perché nelle specifiche dice "If the SYS10 for this interrupt was requested"
+quindi penso che c'è la possibilità che non ci sia stata una sys10 prima.
+
+
+OK, abbiamo risolto (forse) i dubbi sulla sys3. Si torna a parlare di interrupts -.-''
+
+INTERRUPTS
+
+Ho avuto ancora un dubbio su come gestire il CPUTimer (sta il commento nel codice),
+[copio anche qui il commento perché è molto lungo ed è una cosa dove secondo me
+bisogna tornare
+
+//qui gli altri aggiornavano anche il tempo di cpu, ma io no capisco perché bisognerebbe
+ farlo visto che lo abbiamo già fatto sopra, secondo te?
+//logicamente avrebbe senso aggiornarlo qui, ma il dubbio è (che forse va cercato nel
+ libro perché è abbastanza teoria): quando sto gestendo un interrupt il processo che è
+ ufficialmente nella cpu è il processo che era già sulla cpu o l'interrupt handler?
+ Secondo me è l'interrupt handler però è più una mia opinione che una cosa che so.
+ Se facendo ricerche il gestore di interrupt non risulta un processo a sè allora sicuramente
+ il cambio del CPUTime va fatto qui e non all'inizio, altrimenti va bene lasciarlo così com'è
+]
+
+Ho trovato due modi (costanti) diverse per riferirsi agli interrupt, una sta in uARMconst e
+l'altra sta in arch. Quale dobbiamo usare? Per ora ho usato quella di arch, vediamo se
+servirebbe l'altra.
+
+Leggendo le specifiche mi è più chiaro cosa fare: per prima cosa passo l'acknowledgement
+(come dice il primo punto) poi se il semaforo ha valore <1 faccio l'oerazione sul semaforo
+(secondo punto), poi il terzo punto dice di storare lo status ward del device in a1 se era
+stata fatta la sys10. Se la sys10 era stata fatta, vuol dire che c'era un processo
+bloccato nel semaforo e quindi c'è un processo nella coda dei processi bloccati quindi io
+prendo la testa della coda dei bloccati (e la puntiamo con un p), sblocco il processo,se
+ora p!=NULL allora vuol dire che c'era un processo bloccato che è stato sbloccato e quel
+processo è prorpio p. Ora, dovremmo fare ulterioi controlli su p per vedere se viene
+effettivamente sbloccato o lascio così?
+C'è sempre il dubbio di che fare se il semaforo non è <0
+
+Per vedere quali sono gli interrupt che pendondo ho una bitmap che ti dice su quali
+device ci sono interrupt pendenti [CDEV_BITMAP_ADDR], quindi visto che posso interrupt dello
+stesso tipo che pendono su più device devo decidere quale interrupt (di quale device) devo
+gestire (la bit map è spiegata nel manuale a pag 20 sezione 3.1.6).
+Si deve giocare con le operazioni bit a bit. Ho fatto la funzione device_numb
+dove c'è un ciclo for. L'indice del for ci servirà per salveare il numero del device.
+Per capire come funziona faccio un esempio
+
+{NOTA la bitmap si conta da destra a sinistra, diciamo quindi
+che gli indici srabbero 7|6|5|4|3|2|1|0}
+
+Mettiamo che la bitmap è
+
+00100010
+
+La prima cosa che facciamo  è l'& con 1 quindi:
+
+00000001 &
+00100010
+----------
+00000000
+
+è falso quindi faccio uno shift verso destra di un passo
+
+00010001
+
+Finito il ciclo for quindi la i diventa 1. Nel prossimo ciclo l'& sarà:
+
+00000001 &
+00010001
+-----------
+00000001
+
+Quindi passo nell'if e metto devn=1 e mi fermo ritornando 1: infatti dalla bitmap originale
+avevamo un intterupt pendente nel device 1.
+
+Una domanda: la bitmap si aggiorna da sola vero?
+
+--------------------------
+secondo me sì, tanto è una cosa che ha a che fare con l'architettura
+e non col SO, quindi non dobbiamo farla noi (spero)
+-------------------------
+
+Pensavo a come implementare la priorita... e pensavo che dipende da come funzionano gli
+interrupt. Voglio dire, noi usiamo getCAUSE() per vedere su quale linea c'è l'interrupt,
+ma che succede se ho interrupt su più linee? Ok nella mia testa funziona che la causa
+è tipo un byte dove sono accesi i bit in modo che l'i-esimo bit sia acceso quando
+sull'i-esima linea c'è un interrupt. Poi facendo CAUSE_IP_GET con come secondo parametro
+la linea dell'interrupt, ti ritorna vero se nella causa, tra le linee per cui il bit
+è acceso, ci sta quella che gli hai passato come parametro. In questo modo strutturando
+tutti gli if nel modo in cui sono messi allora le priorità vengono seguite in modo esatto.
+
+[ripeto che rimane il dubbio di che fare se il semaforo è positivo, magari a qualcuno il
+dubbio è venuto e lo ha chiesto nella mailing list]
+
+
+INTERRUPT TERMINALE
+
+Provo a fare il gestore per l'interrupt del terminale
+
+OK, che io voglia leggere o scrivere uso sempre la linea 7 e la bitmap per i device del
+terminale è la stessa sia che io voglia leggere sia che io voglia scrivere quidni la prima
+parte della gestione è uguale. Ora per distinguere se quella particolare operazione sia di
+lettura o scrittura devo andare a leggere il registro del device:
+	Controlliamo prima la parte della trasmissione perché la trasmissione ha la precedenza.
+	Se lo status ci dice che ha trasmesso un carattere, noi possiamo riconoscere
+	l'interrupt e fare le operaioni sul semaforo
+
+	Altrimenti andiamo a controllare lo stato del ricevente, se lo stato del registro
+	dice che ho ricevuto un carattere allora riconosco di conseguena
+
+In teoria, facendo il comando di ack dovrebbe settare bene il Device ready in modo che
+solo se sia lo statuts del reciver che del trasmittente sono a device ready allora si
+spegne il bit della bitmap (ancora: la bitmap se la gestisce da solo o devo gestirla io?)
+
+Ho fatto una funione a parte per la gestione dell'interrupt timer perché così è più
+carino da vedere, si poteva fare anche lì ma mi piace di più così u.u
+
+-------------------------
+Ho aggiunto il caso di errore nella device_numb, se nessuno degli 8 bit era =1 -> PANIC.
+Ho messo anche commenti alla funzione nella speranza di non dover tornare ogni volta
+nel diario per ricordarmi che fa xD
+Nella intDev ho messo devReg di tipo puntatore a struct (prima era solo struct) perchè
+credo che la DEV_REG_ADDR ci restituisca un indirizzo.
+Lo stesso per termReg in intTerm.
+Ok, ho finito di leggere interrupt.c
+Domani manca solo da riflettere sul commento sul tempo dentro intTimer()
+Ora sono stanca e rischio solo di far casini.
+
+30/08
+
+Io inizio con la compilazione, incrociamo le dita xD
+
+initial.c
+
+Ho avuto un po' di problemi con gli include ma sono sistemati
+
+Ho copiato la clist.h che avevo nel mio progetto (quello che abbiamo consegnato)
+per fase 1 perché mi dava problemi con la compilazione (quello "vecchio" l'ho
+chiamato clist1). Il problema però non è stato risolto
+
+Nella compilazione mi da questo errore :
+
+      In file included from types.h:4:0,
+            from pcb.h:4,
+            from initial.c:1:
+      initial.c: In function 'main':
+      clist.h:26:20: error: expected expression before '{' token
+      #define CLIST_INIT {NULL}
+                        ^
+      initial.c:166:15: note: in expansion of macro 'CLIST_INIT'
+      readyQueue = CLIST_INIT ;
+                  ^
+
+Non capisco il perché di questo errore: se compilo clist.h da solo non da problemi,
+se compilo il p1test.c (dove ci sta la stessa operazione dove qui ci da
+errore) non ci sono problemi, non so cos'è successo
+
+Ho risolto in modo misterioso:
+praticamente ho commentato il punto in cui definivamo la readyQueue (riga 46)
+e l'ho ridefinita a riga 166 dove ci dava il problema.
+Ripeto che la cosa è strana. Però ora compila
+---------------------
+Anche io ho avuto problemi con la readyQueue, vedi punto 4) del 2/9
+---------------------
+
+scheduler.c
+
+Lo scheduler ha avuto solo un paio di problemi di puntatori.
+Però mi ha fatto salire un dubio: perché la readyQueue non la abbiamo fatto
+puntatore ? Quando la usiamo devo sempre passarla come &readyQueue...
+----------------
+Credo sia perchè in questo modo inizialmente allochiamo spazio per una struttura
+ma in effetti non ha molto senso. Ho paura a cambiare dato che mi hai detto che
+così compila
+----------------
+Quando lo lanceremo vedremo se funziona e se funziona allora va bene così
+
+exceptions.c
+
+La walk non compila quindi, visto che per ora non la usiamo, l'ho commentata
+
+Mi sono ricordata cosa volevamo chiedere: il fatto che se voglio terminare un
+processo che non è della mia progenie come mi devo comportare? Devo dare errore?
+In che modo vedo che non è progenie? Rendo prorpio inaccessibili i pid o facciamo
+la walk?
+
+
+Ho dovuto cambiare l'azione di default delle sysBpHandler. Dalle specifiche
+mi sembra che l'azione di default sia lo stesso che devi fare se hai un breakpoint,
+per evitare ripetizioni di codice ho fatto una funione a parte per l'handler
+dei bp (prova però a leggere le specifiche e vedere se ho ragione a voler
+fare così) [l'ho messo in fondo, si chiama bpHandler]. Facendo questo mi dava
+problemi son la definizione di sysBp_old quindi l'ho ridefinito (riga intorno
+alla 589). Nel caso ci dia problemi in esecuzione facciamola globale
+
+
+Ci sono problemi per quando lo stato è null quindi ho deciso di chiedere a giacomo,
+lui mi ha dato due soluzioni:
+
+fare una variabile:
+
+"Trovi quanti byte è lunga state_t e fai una costante STATE_NULL = 0x[00]*[numero di byte]"
+
+oppure:
+
+"state_t state_null;
+memset(state_null, 0, sizeof(state_t));
+
+
+E poi puoi fare
+pcb->p_s = state_null;
+if (pcb->p_s == state_null)
+
+con
+
+/*
+ * Set every byte from s to s+n to c.
+ * Returns a pointer to s.
+ */
+void *memset(void *s, int c, size_t n)
+{
+    unsigned char* p=s;
+    while(n--)
+        *p++ = c;
+    return s;
+}"
+
+Ho deciso di usare il secondo modo perché non ho capito benissimo come usare
+l'altro. Ho fatto un po di casini perché non so bene come definire la state_null:
+alla fine è dichiarata globale in pcb.h e l'ho inizializzata sia in initial.c
+che in pcb.c e la dichiarazione di memset e in pcb.c, se si trovo un modo più
+coerente di farlo però è meglio.
+
+Ancora non compila, ma ho un idea, domani o dopodomani finisco la compilazione
+
+2/09
+
+
+Continuando con la compilazione
+
+exceptions.c
+
+Cambiato idea, conviene non usare la state_null ma fare una funzione che vede
+se la struttura e nulla perché non si possono confrontare le sturtture con ==
+(maledetto c -_-), quindi ora non uso più state_null come variabile globale
+ma mi faccio una funzione che fa i controlli
+Praticamente uso due funzioni, la isNULL ritorna 1 se lo state è nullo, mentre
+0 se non lo è. In questa funzione uso la memset per farmi una struttura tutta
+nulla (state_null) e poi uso memsmp per comparare la stuttura nulla e quella che
+passo. La memcmp funziona come le stringhe: se le due strutture sono uguali
+mi ritorna 0
+
+interrupt.c
+
+Nessun problema
+
+2/30
+Notate cose strane:
+1)
+#include </usr/include/uarm/uARMconst.h>
+appare sia in initial.c che in initial.h, ne commento uno (quello nel .c)
+2)
+Mi da errore appena include uARMtypes.h perchè dentro quest'ultimo
+c'è #include <uARMconst.h>
+Ho modificato <> con ""  e funziona però non credo che possiamo modificare le cose
+di uARM... come faceva a compilarti le cose singolarmente?
+lo stesso per il p2test in cui gli include di pcb.h e const.h erano con <>
+modificato anche qui con "" ... boh.
+3)
+types.h e clist.h si includono a vicenda, è normale?
+ho commentato l'inclusione di clist.h dentro types, non dovrebbe dare errori.
+4)
+Ogni file che usava la readyQueue mi dava errore di compilazione perchè non la
+trovava. Ho capito l'"errore" guardando il test di phase1: ho visto che per qualche
+strano motivo possiamo usare la CLIST_INIT solo al momento della dichiarazione
+della struttura.
+Alla fine ho rimesso la dichiarazione globale e in questo modo viene vista
+dagli altri moduli. Non so se va bene inizializzarla nell'ambiente globale perchè
+nelle specifiche diceva di inizilizzare la readyQueue nella funzione main.
+Un modo di risolvere il problema sarebbe di trasformare la readyQueue in puntatore
+però non mi convince questa soluzione perchè la readyQueue nel mio schemino mentale
+rappresenta il puntatore alla coda di una lista circolare. Secondo me se lo facciamo
+puntatore dal principio poi il primo proc creato diventerà il puntatore alla lista circolare
+e non farà parte della lista circolare stessa. Non so se mi sono spiegata bene, in
+caso ne parliamo a voce.
+5)
+Continua a darmi errore perchè non trova una funzione che si chiama memcpy negli
+handler in exceptions... Non so più dove cercare e per ora mi arrendo e vado a fare tech.
+risolto questo dovrebbe andare tutto.
+
+3/9
+Stiamo provando disperatamente.
+Abbiamo riorganizzato le cartelle
+Abbiamo provato a includere string.h e non funziona.
+Secondo me la chiave di tutto sta in questi .e e nel makefile che dobbiamo fare automatico.
+Ma non sappiamo come fare e la documentazione online sembra enorme. Provo a trovare un "riassunto".
+
+
+4/9
+
+Ho scopero che la memcpy la usava per copiare lo stato del processore nelle
+exeption nelle sys4 5 e 6 .
+Precisamente nella compilazione lui diceva di usare la memcpy per questa
+operazione qui:
+currentProcess->p_excpvec[EXCP_SYS_NEW]=*sysBp_new;
+
+e quindi io usato la nostra copyState per fare lo stesso lavoro
+
+copyState(&currentProcess->p_excpvec[EXCP_SYS_NEW], sysBp_new);
+
+5/9
+ho provato a ricompilare la phase1, e mi da ancora l'errore perchè non vuole
+<> quando faccio #include <arch.h>, anche da voi lo fa? Ho reinstallato uarm e
+non mi dice più niente... ooook
+
+Prima esecuzione phase2: unico messaggio comparso: KERNEL PANIC!
+
+Ho deciso di usare la funzione
+void addokbuf(char *strp) {
+	tprint(strp);
+}
+per le stampe del debug.
+
+Initial.c funziona correttamente fino alla chiamata dello scheduler yeee!!
+
+Il problema è quando entra nello scheduler, sembra che continui a ciclare con la
+funzione scheduler. Stampa all'infinito
+Il currentProcess è NULL
+Ho impostato il currentProcess.
+carico il processo
+
+Forse LDST non basta per eseguire il processo?
+
+Scherzavo, LDST esegue il processo. Ho messo una stampa nel test, la cosa strana
+è che stampa solo la prima lettera... Non è che ogni 5ms ricomincia?
+Come facciamo a far sì che se c'è solo lui continua ad eseguire?
+
+Ho provato a spostare la stampa a dopo la semOp e non stampa niente. Le possibilità sono 2
+- Non arriva neanche a fare la SEMOP perchè non ha abbastanza tempo
+- La semOp non funziona.
+
+Per ora mi sembra probabile la prima dato che precedentemente stampava solo una lettera
+Sembrerebbe che il pc del processo non si sposti... Boh.
+Comunque stupenda la print nel test di phase2 che usa la semOp -.-"
+
+12/9
+
+GIULIO:
+
+Ho modificato il Makefile, ho aggiunto ai flag -I./h e -I/usr/include/uarm in questo modo nei file .c possiamo evitare 
+di fare "../h/file.h" ma direttamente <file.h> (perche` non possiamo modificare il file p2test.c
+e non potevamo lasciare quegli include), e piu` o meno per lo stesso motivo l'altro -I
+Inoltre ho tolto i -c e al posto di quello messo $(CFLAGS) se no non funzionava.
+
+Ora modifico anche tutti gli altri file .c
+
+///////////////////////
+
+Non ho idea del perche` abbiate messo LDST( &first->p_s ); prima di chiamare lo scheduler => l'ho tolto e (non) va come
+prima
+
+13/9
+
+Sto mettendo tprint ovunque per seguire cosa fa uARM, praticamente stampa una lettera, raisa un interrupt, l'interupt
+handler riconosce che e' un interrupt del terminale e richiama intTer.
+La cosa strana e' che al primo "ciclo" *sem ha valore <1 mentre in quelli dopo no, quindi ora sto cercando di capire
+come funziona tutta questa parte.
+
+La cosa interessante e' che se faccio tprint dentro lo scheduler, appena entro nel test non stampa la prima lettera
+della tprint, ma va direttamente all'interrupt handler, per il resto come prima.
+
+Il problema e' perche' chiama l'interrupt?
+
+Secondo me non possiamo usare la tprint (o addokbuf) nel test, ed e' per questo
+che il prof ha creato una seconda funzione print (se no perche' farlo?)
+Nel manuale c'e' scritto che tprint fa busywaiting, magari e' per questo che
+manda in pallone tutto?
+
+Volevo vedere la print del prof, ma nella print ci sta una syscall, quindi niente
+ho iniziato a vedere come chiama le syscal e perche' fa breakpoint.
+Al momento quello che so e' che alla chiamata non lo riconosce ne' come syscall
+ne' come breakpoint e quindi chiama PANIC()
+
+Trovato l'errore nella cause, GETCAUSE() non fa niente di utile quindi l'ho
+eliminato, mentre CAUSE_EXCCODE_GET() gli ho messo come parametro 
+sysBp_old->CP15_Cause invece di cause e basta (il che non aveva molto senso...)
+
+Pensavo che SEMOP funzionasse e invece non ne sono sicuro. In pratica inizia
+un loop infinito come per quella cosa di prima con il tprint, pero' in piu', si
+alterna con il timer che scatta (lo prendo come cosa positiva).
+
+Fatto sta che ho modificato l'initial in modo tale che parta testfun invece di test
+cosi posso testare i codici un pezzetto alla volta senza stravoltere tutto il
+codice (e sembra essere una buona idea fin'ora)
+
+tprint puo' essere usato in qualsiasi punto dei nostri codici eccetto nel file test
+
+Sto provando disperatamente a far funzionare la print, pero' quando parte il loop
+infinito non va proprio avanti il codice... A volte parte senza apparente motivo
+
+14/9
+
+Non mi ha salvato quello che ho scritto prima...
+Non ricordo esattamente tutto quello che ho fatto, ho iniziato a togliere un po di commenti
+inutili che impicciavano e basta, inoltre ho aggiunto un +1 tra i semafori dei devices
+Ho aggiunto	currentProcess->p_s.pc -= 4; 	nel sysbphandler sotto alla cause perche'
+Giacomo ha fatto cosi ma non so ancora bene perche'
+
+Ho scoperto che nello scheduler non vengono impostati bene gli orari, infatti parte direttamente
+con il time slice terminato.
+
+Sono sicuro che ci sia qualcosa che mi sfugge >.< che nervi

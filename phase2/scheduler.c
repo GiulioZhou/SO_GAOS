@@ -44,6 +44,7 @@ void scheduler(){
 	if (currentProcess==NULL){
 		if( !clist_empty(readyQueue) ){
 			currentProcess = removeProcQ(&readyQueue);
+			tprint("impostato currentProcess\n");
 		}
 		else{
 			if( processCount == 0 )	//non ci sono più processi e posso terminare

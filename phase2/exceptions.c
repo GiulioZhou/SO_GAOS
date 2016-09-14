@@ -150,8 +150,11 @@ void sysBpHandler(){
 					bpHandler();
 			}
 			
-			if(currentProcess) LDST(&currentProcess->p_s);
-			else scheduler();
+			if(currentProcess){
+				tprint("???\n");
+				 LDST(&currentProcess->p_s);
+			}
+			else {				tprint("no currproc\n"); scheduler();}
 			
 		}
 		else if ((currentProcess->p_s.cpsr & STATUS_USER_MODE) == STATUS_USER_MODE) {//qui nel caso sono in user mode e provo a fare una syscall faccio come mi dicono le specifiche, copiando le old aree giuste e alzando una trap chiamando l'handler delle trap
