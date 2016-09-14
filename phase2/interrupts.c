@@ -41,26 +41,17 @@ void intHandler(){
 	retState = (state_t *) INT_OLDAREA;
 	retState->pc = retState->pc - 4;
 
-	//salvo la causa dell'interrupt
-	cause = CAUSE_EXCCODE_GET(retState->pc.CP15_Cause);
+	cause = getCAUSE();		//salvo la causa dell'interrupt
 
-	// Se un processo era in esecuzione
 	if(currentProcess != NULL){
-		tprint("aggiorno\n");
-		//aggiorno i campi del tempo
-		//gli start dove gli startiamo? Forse nella createProcess
 		currentProcess->p_userTime += interStart - userTimeStart;
 		currentProcess->p_CPUTime += interStart - CPUTimeStart;
-
 		copyState( retState, &currentProcess->p_s );
 
 	}
 
-
 	//gestisci in base alla causa
-
-
-	if (CAUSE_IP_GET(cause, IL_TIMER)){//l'interrupt è dello pseudo-clock, due casi: fine TIME_SLICE, fine 100 millisecondi
+	if (CAUSE_IP_GET(cause, IL_TIMER)){	//Pseudoclock o time-slice
 		tprint("fine timer\n");
 		intTimer();
 	}
@@ -90,6 +81,7 @@ void intHandler(){
 
 
 void intDev(int int_no){ //gestore dell'interruptdi device, ho come argomento la linea di interrupt su cui arriva la cosa
+	tprint("intDev\n");
 	int devnumb;
 	memaddr  *pending;
 	int *sem; //semaforo su cui siamo bloccati
@@ -158,17 +150,11 @@ void intTerm(int int_no){
 }
 
 void intTimer(){
+	tprint("intTimer\n");
 	if (current_timer=TIME_SLICE){
 		if (currentProcess!=NULL){
 			insertProcQ(&readyQueue, currentProcess);
-			//qui gli altri aggiornavano anche il tempo di cpu, ma io no capisco perché bisognerebbe farlo visto che lo abbiamo già fatto sopra, secondo te?
-			//logicamente avrebbe senso aggiornarlo qui, ma il dubbio è (che forse va cercato nel libro perché è abbastanza teoria):
-			// quando sto gestendo un interrupt il processo che è ufficialmente nella cpu è il processo che era già sulla cpu o l'interrupt handler?
-			//Secondo me è l'interrupt handler però è più una mia opinione che una cosa che so.
-			//Se facendo ricerche il gestore di interrupt non risulta un processo a se allora sicuramente il cambio del CPUTime va fatto qui e non all'inizio,
-			// altrimenti va bene lasciarlo così com'è
-			//Tutti i miei dubbi potrebbero essere risolti facendo con l'interrupt start....
-			currentProcess->p_CPUTime += getTODLO() - interStart;
+			//currentProcess->p_CPUTime += getTODLO() - interStart; // che senso ha???
 			currentProcess=NULL;
 		}
 	}else if (current_timer=PSEUDO_CLOCK){
