@@ -8,12 +8,13 @@
 //
 // ricorda ce la const.h ce l'ha data il prof
 
-#include "../h/pcb.h"
-#include "../h/scheduler.h"
-#include "../h/const.h"
-#include "../h/initial.h"
-#include </usr/include/uarm/libuarm.h>
-#include </usr/include/uarm/uARMconst.h>
+#include <pcb.h>
+#include <initial.h>
+#include <scheduler.h>
+#include <const.h>
+
+#include <libuarm.h>
+#include <arch.h>
 
 /* This function places the specified character string in okbuf and
  *      causes the string to be written out to terminal0
@@ -69,6 +70,7 @@ void scheduler(){
 		current_timer = TIME_SLICE;
 	}
 
+
 	/*---------Altro modo--------*/
 	//
 	//
@@ -106,12 +108,14 @@ void scheduler(){
 		}
 		CPUTimeStart = getTODLO();	//se comincia l'esecuzione di un nuovo processo riparte il conteggio del tempo di CPU
 	}
+
 	userTimeStart = getTODLO();	//riparte il conteggio del tempo utente perché noi entriamo nello scheduler come kernel quindi dobbiamo far ripartire il tempo utente quando usciamo
 
 	//carico nel processore lo stato del processo scelto come prossimo
 	//addokbuf("carico il processo  \n");
-	LDST( &currentProcess->s_t );
+	LDST( &currentProcess->p_s );
 	//addokbuf("Questa stampa non ci deve essere  \n");
+
 }
 //
 // questo di seguito è per vedere se l'interval timer è sttato dal time slice o dallo pseudo clock, non so se ci servirà o meno in futuro, per ora non vedo ragione di annotarlo

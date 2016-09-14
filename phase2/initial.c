@@ -1,12 +1,12 @@
-#include "../h/pcb.h"
-#include "../h/asl.h"
-#include "../h/initial.h"
-#include "../h/scheduler.h"
-#include "../h/exceptions.h"
-#include "../h/interrupts.h"
+#include <pcb.h>
+#include <asl.h>
+#include <initial.h>
+#include <scheduler.h>
+#include <exceptions.h>
+#include <interrupts.h>
 
-#include </usr/include/uarm/libuarm.h>
-#include </usr/include/uarm/arch.h>
+#include <libuarm.h>
+#include <arch.h>
 //#include </usr/include/uarm/uARMconst.h>
 
 /* This function places the specified character string in okbuf and
@@ -49,7 +49,7 @@ void addokbuf(char *strp) {
  */
 
 //inclusione del test -> è scritto nelle specifiche di metterlo
-extern void test();
+extern void testfun();
 
 //variabili globali
 
@@ -215,7 +215,7 @@ int main(){
 
 	first->p_s.cpsr = STATUS_ENABLE_INT(first->p_s.cpsr) | STATUS_ENABLE_TIMER(first->p_s.cpsr) | STATUS_SYS_MODE; //come prima
 	first->p_s.sp = RAM_TOP - FRAME_SIZE; //#define FRAME_SIZE 4096
-	first->p_s.pc = (memaddr)test;
+	first->p_s.pc = (memaddr)testfun;
 
 
 
@@ -225,9 +225,6 @@ int main(){
 
 	// ----6----
 
-	//addokbuf("Chiamo lo scheduler   \n");
-
-	LDST( &first->p_s );
 	// Call the scheduler.
 	scheduler();
 

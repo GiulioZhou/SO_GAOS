@@ -1,12 +1,12 @@
-#include "../h/asl.h"
-#include "../h/pcb.h"
-#include "../h/initial.h"
-#include "../h/scheduler.h"
-#include "../h/exceptions.h"
-#include "../h/interrupts.h"
+#include <pcb.h>
+#include <asl.h>
+#include <initial.h>
+#include <scheduler.h>
+#include <exceptions.h>
+#include <interrupts.h>
 
-#include </usr/include/uarm/arch.h>
-#include </usr/include/uarm/libuarm.h>
+#include <libuarm.h>
+#include <arch.h>
 
 cputime_t interStart; //mi sa che devo farla globale
 
@@ -51,33 +51,43 @@ void intHandler(){
 
 	// Se un processo era in esecuzione
 	if(currentProcess != NULL){
+		tprint("aggiorno\n");
 		//aggiorno i campi del tempo
 		//gli start dove gli startiamo? Forse nella createProcess
 		currentProcess->p_userTime += interStart - userTimeStart;
 		currentProcess->p_CPUTime += interStart - CPUTimeStart;
+
 		copyState( retState, &currentProcess->p_s );
+
 	}
+
 
 	//gestisci in base alla causa
 
 
 	if (CAUSE_IP_GET(cause, IL_TIMER)){//l'interrupt è dello pseudo-clock, due casi: fine TIME_SLICE, fine 100 millisecondi
+		tprint("fine timer\n");
 		intTimer();
 	}
 	else if (CAUSE_IP_GET(cause, IL_DISK)){
+		tprint("disk\n");
 		intDev(IL_DISK);
 	}
 	else if (CAUSE_IP_GET(cause, IL_TAPE)){
 		intDev(IL_TAPE);
+		tprint("tape\n");
 	}
 	else if (CAUSE_IP_GET(cause, IL_ETHERNET)){
 		intDev(IL_ETHERNET);
+				tprint("eth\n");
 	}
 	else if (CAUSE_IP_GET(cause, IL_PRINTER)){
 		intDev(IL_PRINTER);
+		tprint("print\n");
 	}
 	else if (CAUSE_IP_GET(cause, IL_TERMINAL)){
 		intTerm(IL_TERMINAL);
+		tprint("terminal\n");
 	}
 
 	scheduler();
@@ -120,13 +130,15 @@ void intTerm(int int_no){
 
 	termReg=(termreg_t *)DEV_REG_ADDR(int_no, devnumb);
 
-	//dcrivere ha la priorità sul leggere, quidni prima leggiamo :
+	//Scrivere ha la priorità sul leggere, quidni prima leggiamo :
+	//????? magari scriviamo prima?
 	if ((termReg->transm_status & DEV_TERM_STATUS)== DEV_TTRS_S_CHARTRSM){//le cose in maiuscolo sono in uARMconst
 
 		sem=&devices[int_no-DEV_IL_START][devnumb];//se è trasmissione allora il semaforo è quello di trasmissione
 		termReg->transm_command=DEV_C_ACK;//riconosco l'interrupt
-		
+	tprint("Ora vedo se mi devo bloccare\n");
 		if (*sem < 1){
+	tprint("mi devo bloccare\n");
 			unblck_proc = headBlocked(sem);
 			semaphoreOperation(sem,1);
 			if (unblck_proc!=NULL){

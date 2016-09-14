@@ -29,10 +29,7 @@ void freePcb(struct pcb_t *p){
 //Rimuove un processo dalla pcbFree e ne ritorna il puntatore.
 
 struct pcb_t *allocPcb(){
-<<<<<<< HEAD:phase1/pcb.c
 	int i;
-=======
->>>>>>> 3eef626d3e4e6bf2c72ad84c6a6016f6c37e6226:pcb.c
 	if (clist_empty(pcbFree)){					//Nessun processo libero
 		return (NULL);
 
@@ -43,17 +40,12 @@ struct pcb_t *allocPcb(){
 
     	p->p_parent=NULL;
 	p->p_cursem=NULL;
-<<<<<<< HEAD:phase1/pcb.c
 	p->p_pid=0;
 	//p->p_s=state_null; per fare questa operazione faccio la memset su p->p_s
       memset(&p->p_s, 0, sizeof(state_t));
 	p->p_resource=0;
 	p->p_userTime=0;
 	p->p_CPUTime=0;
-=======
-	p->p_resource=0;
-	p->p_s=0;
->>>>>>> 3eef626d3e4e6bf2c72ad84c6a6016f6c37e6226:pcb.c
 	p->p_list.next=NULL;
 	p->p_children.next=NULL;
 	p->p_siblings.next=NULL;

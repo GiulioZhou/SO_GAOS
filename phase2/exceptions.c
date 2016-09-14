@@ -1,8 +1,8 @@
-#include "../h/asl.h"
-#include "../h/pcb.h"
-#include "../h/initial.h"
-#include "../h/scheduler.h"
-#include "../h/exceptions.h"
+#include <asl.h>
+#include <pcb.h>
+#include <initial.h>
+#include <scheduler.h>
+#include <exceptions.h>
 
 #include </usr/include/uarm/libuarm.h>
 
@@ -105,13 +105,17 @@ int isNull(state_t *state){
 
 
 void sysBpHandler(){
+
 	state_t *sysBp_old = (state_t *) SYSBK_OLDAREA;
 	//non ho capito bene, ma in teoria quando fai la system call ti stora le cose nella old area e quindi tu metti gli stati della od area nel processo corrente, ma non so se va bene
 	copyState(&currentProcess->p_s, sysBp_old);
+
 	//Prendo la causa dell'eccezzione
-	int cause=getCAUSE();
+	int cause;
+	
+
 	//i tipi di cui mi fido di più fanno anche questo, noi quando proviamo commentiamolo e vediamo se funziona
-	cause = CAUSE_EXCCODE_GET(cause);
+	cause = CAUSE_EXCCODE_GET(sysBp_old->CP15_Cause);
 
 	/* Salva i parametri delle SYSCALL */
 	unsigned int sysc = sysBp_old->a1;
@@ -127,7 +131,7 @@ void sysBpHandler(){
 			//essendo sicura di essere in kernel mode posso dire che è finito il tempo utente del processo. Dovrei farlo appena entrata nell'handler? Non cred perché potrei essere capitata qui anche in user mode, solo qui ho la sicurezza di essere in kernel mode
 			currentProcess->p_userTime += getTODLO() - userTimeStart;
 
-
+			tprint("che sys call e'?\n");
 
 
 			/* Gestisce ogni singola SYSCALL */
@@ -143,6 +147,7 @@ void sysBpHandler(){
 					break;
 
 				case SEMOP:
+					tprint("semop\n");
 					semaphoreOperation((int *) argv1, (int) argv2);
 					break;
 
@@ -172,6 +177,7 @@ void sysBpHandler(){
 					break;
 
 				case IODEVOP:
+					tprint("iodevop\n");
 					semaphoreOperation ((int *) argv1, (int) argv2);
 					break;
 
@@ -189,6 +195,7 @@ void sysBpHandler(){
 
 		}
 		else if ((currentProcess->p_s.cpsr & STATUS_USER_MODE) == STATUS_USER_MODE) {//qui nel caso sono in user mode e provo a fare una syscall faccio come mi dicono le specifiche, copiando le old aree giuste e alzando una trap chiamando l'handler delle trap
+			tprint("User mode D:\n");
 			if (sysc >= 1 && sysc <= SYSCALL_MAX){
 				state_t *pgmTrap_old = (state_t *) PGMTRAP_OLDAREA;
 				copyState(pgmTrap_old,sysBp_old);
@@ -199,10 +206,12 @@ void sysBpHandler(){
 		}
 
 	}else if ( cause == EXC_BREAKPOINT ){ //caso breakpoint
+
 		bpHandler();
 
 
 	}else { //non è ne syscall ne breakpoint
+		tprint("ne syscall ne breakpoint");
 		PANIC();
 	}
 }
@@ -324,17 +333,19 @@ void terminateProcess(pid_t pid){
 
 //Semaphore Operation SYS3
 void semaphoreOperation (int *semaddr, int weight){
-
+	tprint("semOperation\n");
 	if (weight==0){
 		//avevamo messo questo ma secondo me non ha senso chiamare qui le system call in questo modo
 		//SYSCALL(TERMINATEPROCESS, SYSCALL(GETPID)); //vediamo se possiamo farlo
+		tprint("weight 0\n");
 		terminateProcess(0);
 	}
 	else{
-
-		(*semaddr) += weight;
+	tprint("wight diverso da 0\n");
+		(*semaddr) += weight;  //!!!!!!!!! KERNEL PANIC
+	tprint("e' qui il problema\n");
 		if(weight > 0){ //abbiamo liberato risorse
-
+	tprint("liberato risorse\n");
 		//	else if(*semaddr >= 0){ //26/08: questo è il controllo che forse dovremmo togliere; 28/08: cambiato if in else if ; abbiamo deciso di toglierlo, vedere il diaro per le motivazioni (26/08)
 
 				// Se sem > risorse richieste dal primo bloccato --> sblocco processo
@@ -359,11 +370,13 @@ void semaphoreOperation (int *semaddr, int weight){
 			//becomes negative, the requesting process should be blocked in the semaphore's queue.
 
 			//se il semaforo era o diventa negativo ci blocchiamo, altrimenti modifichiamo il valore del semaforo
-
+	tprint("???\n");
 			if  (*semaddr < 0)  {
-				if(insertBlocked(semaddr, currentProcess))
+				if(insertBlocked(semaddr, currentProcess)){
+					tprint("panic non insertblock");
 					PANIC();	//currentProcess è dell'initial???
-
+			}
+				tprint("allochiamo risorse\n");
 				currentProcess->p_resource=weight;
 				currentProcess->p_CPUTime += getTODLO() - CPUTimeStart;
 				currentProcess = NULL;
