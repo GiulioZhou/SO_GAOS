@@ -35,7 +35,11 @@
  } state_t;
  */
 
-extern void testfun();	//Il processo da far partire
+//extern void test();
+
+void testfun(){		//Il processo da far partire
+	tprint("ciao\n");
+}
 
 //variabili globali
 
