@@ -72,10 +72,11 @@ int isNull(state_t *state){
 void sysBpHandler(){
 	
 	state_t *sysBp_old = (state_t *) SYSBK_OLDAREA;
-	copyState(sysBp_old), &currentProcess->p_s;
+	copyState(&currentProcess->p_s, sysBp_old);
 	
-	int cause = CAUSE_EXCCODE_GET(sysBp_old->CP15_Cause);		//Prendo la causa dell'eccezzione
-	
+	int cause = CAUSE_EXCCODE_GET(currentProcess->p_s.CP15_Cause);		//Prendo la causa dell'eccezzione
+	currentProcess->p_s.pc -= 4;	
+
 	// Salva i parametri delle SYSCALL
 	unsigned int sysc = sysBp_old->a1;
 	unsigned int argv1 = sysBp_old->a2;

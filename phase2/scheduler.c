@@ -23,11 +23,13 @@ void scheduler(){
 	if( slice_end <= 0 || currentProcess==NULL && slice_end > 0 ){ //time slice terminato o metto in escuzione un nuovo processo, setta il prossimo
 		time_slice_start = time;
 		slice_end = SCHED_TIME_SLICE;
+		tprint("time slice terminato\n");
 	}
 	
 	if( clock_end <=0 ){	//pseudo clock terminato, setta il prossimo
 		pseudo_clock_start = time;
 		clock_end = SCHED_PSEUDO_CLOCK;
+		tprint("pseudo clock terminato\n");
 	}
 	
 	if( clock_end <= slice_end ){	//salvo quale timer è stato settato -> Ci serve saperlo?
