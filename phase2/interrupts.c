@@ -111,7 +111,7 @@ void intTerm(int int_no) {
 	termreg_t *reg = (termreg_t *) DEV_REG_ADDR(IL_TERMINAL, devno);
 	reg->transm_command = DEV_C_ACK;
 	
-	LDST(&current_process->p_s);
+	LDST(&currentProcess->p_s);
 }
 
 /*
