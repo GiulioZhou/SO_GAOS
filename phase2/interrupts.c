@@ -162,7 +162,7 @@ void intTerm(){
 
 	}
 	else if ((termReg->recv_status & DEV_TERM_STATUS) == DEV_TRCV_S_CHARRECV){
-		sem=&devices[int_no-DEV_IL_START+1][devnumb];//se è di ricevere allora il semaforo è l'ultimo
+		sem=&devices[IL_TERMINAL-DEV_IL_START+1][devnumb];//se è di ricevere allora il semaforo è l'ultimo
 		termReg->recv_command=DEV_C_ACK;
 
 		if (*sem < 1){
