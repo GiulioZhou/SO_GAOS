@@ -12,7 +12,7 @@ unsigned int CPUTimeStart = 0;			//per contare il CPUTime del processo corrente
 unsigned int pseudo_clock_start = 0;	//ultima partenza dello pseudo clock
 unsigned int current_timer;				//quale dei due timer ( pseudo clock o time slice ) alzerà un interrupt per primo
 
-/*
+
 void loadAndRun() {
 	// Get next process
 	currentProcess = removeProcQ(&readyQueue);
@@ -25,7 +25,7 @@ void loadAndRun() {
 	LDST(&currentProcess->p_s);
 }
 
-void schedNext() {
+void scheduler() {
 	// Set aside the old current process
 	if (currentProcess) {
 		//currentProcess->processor_time+= getTODLO()-time_slice_start;
@@ -47,14 +47,16 @@ void schedNext() {
 
 
 
-void scheduler(){
+void initScheduler(){
 	
 	setTIMER(0);
 	schedNext();
 	
 }
 
-*/
+
+
+/*
 
 void initScheduler(){
 	
@@ -116,4 +118,4 @@ void scheduler(){
 	
 }
 
-
+*/
