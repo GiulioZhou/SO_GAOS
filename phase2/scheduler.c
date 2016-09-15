@@ -12,6 +12,11 @@ unsigned int CPUTimeStart = 0;			//per contare il CPUTime del processo corrente
 unsigned int pseudo_clock_start = 0;	//ultima partenza dello pseudo clock
 unsigned int current_timer;				//quale dei due timer ( pseudo clock o time slice ) alzerà un interrupt per primo
 
+
+
+
+
+
 void scheduler(){
 	//RIVEDERE se è garantito che lo pseudo clock scatta ogni 100 millisecondi
 	unsigned int time = getTODLO(); // mi salvo quando sono entrato nello scheduler

@@ -8,6 +8,16 @@
 #include <libuarm.h>
 #include <arch.h>
 
+typedef unsigned char byte;
+
+byte firstDevice(byte bitmap) {
+	uint n;
+	for (n = 0; n < 8; n++, bitmap/= 2) {
+		if (bitmap & 1) return n;
+	}
+	return -1;
+}
+
 cputime_t interStart; //mi sa che devo farla globale
 
 int device_numb(memaddr *pending){
@@ -105,7 +115,17 @@ void intDev(int int_no){ //gestore dell'interruptdi device, ho come argomento la
 
 }
 
+void intTerm() {
+	memaddr *line = (memaddr *) CDEV_BITMAP_ADDR(IL_TERMINAL);
+	int devno = firstDevice(*line);
+	
+	termreg_t *reg = (termreg_t *) DEV_REG_ADDR(IL_TERMINAL, devno);
+	reg->transm_command = DEV_C_ACK;
+	
+	LDST(&current_process->p_s);
+}
 
+/*
 void intTerm(int int_no){
 	int devnumb;
 	memaddr  *pending;
@@ -147,7 +167,7 @@ void intTerm(int int_no){
 		}
 
 	}
-}
+}*/
 
 void intTimer(){
 	tprint("intTimer\n");
