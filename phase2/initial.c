@@ -83,9 +83,9 @@ void printState(state_t s) {
 //extern void test();
 
 void testfun() {
-	pid_t pid = SYSCALL(GETPID, 0, 0, 0);
+	//pid_t pid = SYSCALL(GETPID, 0, 0, 0);
 	tprint("Started process ");
-	printHex(pid);
+	printHex(1);
 	for (;;) tprint("abc\n");
 	WAIT();
 }
