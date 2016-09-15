@@ -12,7 +12,7 @@ unsigned int CPUTimeStart = 0;			//per contare il CPUTime del processo corrente
 unsigned int pseudo_clock_start = 0;	//ultima partenza dello pseudo clock
 unsigned int current_timer;				//quale dei due timer ( pseudo clock o time slice ) alzerà un interrupt per primo
 
-/*
+
 void scheduler(){
 	
 	setTIMER(0);
@@ -25,7 +25,7 @@ void scheduler(){
 }
 
 
-*/
+/*
 
 
 void scheduler(){
@@ -80,5 +80,5 @@ void scheduler(){
 	LDST( &currentProcess->p_s );	//carico nel processore lo stato del processo scelto come prossimo
 
 }
-
+*/
 
