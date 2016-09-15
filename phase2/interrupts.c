@@ -46,18 +46,20 @@ void intHandler(){
 	int cause;
 
 	interStart = getTODLO();	//salvo il tempo in cui cominciamo la gestione
-
-	/*Decremento pc all'istruzione che stavamo eseguendo  --> riguardare */
+/*
+	Decremento pc all'istruzione che stavamo eseguendo  --> riguardare
 	retState = (state_t *) INT_OLDAREA;
 	retState->pc = retState->pc - 4;
-
+*/
 	cause = getCAUSE();		//salvo la causa dell'interrupt
 
 	if(currentProcess != NULL){
 		currentProcess->p_userTime += interStart - userTimeStart;
 		currentProcess->p_CPUTime += interStart - CPUTimeStart;
-		copyState( retState, &currentProcess->p_s );
-
+		//copyState( retState, &currentProcess->p_s );
+		copyState(&currentProcess->p_s, INT_OLDAREA);
+		currentProcess->p_s.pc -= 4;
+		
 	}
 
 	//gestisci in base alla causa
