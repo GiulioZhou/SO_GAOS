@@ -34,6 +34,7 @@
  unsigned int TOD_Low;
  } state_t;
  */
+#define HEX_DIGITS 8
 
 //Stampa un numero esadecimale
 inline void printHex(size_t n) {
@@ -164,7 +165,7 @@ int main(){
 	first = allocPcb();
 	
 	active_pcb[0]=first;
-	first.p_pid=1;
+	first->p_pid=1;
 	
 	first->p_s.cpsr = STATUS_ENABLE_INT(first->p_s.cpsr) | STATUS_ENABLE_TIMER(first->p_s.cpsr) | STATUS_SYS_MODE;
 	first->p_s.sp = RAM_TOP - FRAME_SIZE;
