@@ -111,9 +111,9 @@ void scheduler(){
 	}
 	
 	userTimeStart = getTODLO();	//riparte il conteggio del tempo utente perché noi entriamo nello scheduler come kernel quindi dobbiamo far ripartire il tempo utente quando usciamo
-	
+	tprint("ora carico il processo\n");
 	LDST( &currentProcess->p_s );	//carico nel processore lo stato del processo scelto come prossimo
-
+	
 }
 
 
