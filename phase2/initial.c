@@ -169,7 +169,7 @@ int main(){
 	first = allocPcb();
 	
 	active_pcb[0]=first;
-	first->p_pid=1;
+	first->p_pid=1; //newPid
 	
 	first->p_s.cpsr = STATUS_ENABLE_INT(first->p_s.cpsr) | STATUS_ENABLE_TIMER(first->p_s.cpsr) | STATUS_SYS_MODE;
 	first->p_s.sp = RAM_TOP - FRAME_SIZE;
@@ -178,7 +178,7 @@ int main(){
 	insertProcQ(&readyQueue, first);
 	processCount++;
 	
-	scheduler();
+	initScheduler();
 	
 	return 0;
 }
