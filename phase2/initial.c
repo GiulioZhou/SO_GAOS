@@ -35,6 +35,50 @@
  } state_t;
  */
 
+//Stampa un numero esadecimale
+inline void printHex(size_t n) {
+	char str[3+HEX_DIGITS];
+	int i;
+	
+	str[0] = '0';
+	str[1] = 'x';
+	str[2+HEX_DIGITS] = 0;
+	
+	for (i = 2; i < 10; i++)
+		str[i] = '0';
+	
+	i = 1+HEX_DIGITS;
+	while (n > 0 && i > 1) {
+		str[i] = 48+n%16;
+		str[i]+= str[i] < 58 ? 0 : 7;
+		
+		n/= 16;
+		i--;
+	}
+	
+	tprint(str);
+	tprint("\n");
+}
+
+//stampa lo state t
+void printState(state_t s) {
+	tprint("----- STATE -----\n");
+	tprint("IP    ");
+	printHex(s.ip);
+	tprint("PC    ");
+	printHex(s.pc);
+	tprint("SP    ");
+	printHex(s.sp);
+	tprint("LR    ");
+	printHex(s.lr);
+	tprint("cpsr    ");
+	printHex(s.cpsr);
+	tprint("CP15_Control    ");
+	printHex(s.CP15_Control);
+	tprint("--- END STATE ---\n");
+
+}
+
 //extern void test();
 
 void testfun(){		//Il processo da far partire

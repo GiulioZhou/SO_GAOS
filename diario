@@ -1346,10 +1346,49 @@ infinito non va proprio avanti il codice... A volte parte senza apparente motivo
 Non mi ha salvato quello che ho scritto prima...
 Non ricordo esattamente tutto quello che ho fatto, ho iniziato a togliere un po di commenti
 inutili che impicciavano e basta, inoltre ho aggiunto un +1 tra i semafori dei devices
-Ho aggiunto	currentProcess->p_s.pc -= 4; 	nel sysbphandler sotto alla cause perche'
-Giacomo ha fatto cosi ma non so ancora bene perche'
 
 Ho scoperto che nello scheduler non vengono impostati bene gli orari, infatti parte direttamente
 con il time slice terminato.
 
 Sono sicuro che ci sia qualcosa che mi sfugge >.< che nervi
+
+Sto guardando la sys3, elimino un else if lasciando solo un normale if quando controlla se il
+processo in testa al semaforo ha abbastanza risorse (magari avete avuto un motivo intanto faccio
+cosi)
+Avete messo un if dopo la removeBlocked, quindi volete fare tipo un controllo giusto? Ho aggiunto
+ un else con PANIC(), almeno se non funziona succede qualcosa.
+A mio avviso dentro la sys3 ci deve essere un while che permette di risvegliare tutti i processi 
+possibili in base al valore del weight, come avete fatto voi, anche se liberiamo tutte le risorse,
+sbloccheremo solo 1 processo, e tutti quelli in coda rimarranno in coda per sempre perché non verranno
+mai risvegliati in quanto se abbiamo liberato tutte le risorse, non ne possiamo liberare altre,
+cioè non verrà più chiamata la sys3 (è un esempio estremo)
+
+
+Sys1 SEMBRA ok
+
+Sys2 SEMBRA ok -> ho messo in commento la mia “versione” per il caso suicidio, secondo me è più
+bello però effettivamente fa un controllino in più quindi va beh
+
+Sys4 sono sicuro che i flag non sono copiati in modo giusto perché bisogna copiare solo il primo 
+byte ma non so bene come fare
+Bisogna per forza fare la manipolazione bit a bit ma io non sono capace quindi lo farà Olga :D
+Sys5/6 come 4
+
+Sys7 al momento penso di saltarlo perché non si capisce cosa ci dobbiamo fare…
+Update: a che ci serve la load? Secondo le mailing list, quello che tocca fare è mettere in a1
+e fare LDST -> però cosa mettere in LDST? secondo me direttamente la old e fa tutto da solo senza
+aver bisogno di un’altra variabile
+Ho modificato e messo la vostra roba in commento, ne riparliamo
+
+Sys8 SEMBRA ok
+
+Sys9 SEMBRA ok
+
+
+15/9
+
+Ho aggiunto una funzione rubata a Giacomo per stampare le variabili (esadecnmali) e una per stampare lo state
+
+
+
+
