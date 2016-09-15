@@ -42,7 +42,7 @@ int device_numb(memaddr *pending){
 
 void intHandler(){
 
-	state_t *retState;
+	// state_t *retState;
 	int cause;
 
 	interStart = getTODLO();	//salvo il tempo in cui cominciamo la gestione
@@ -116,6 +116,8 @@ void intDev(int int_no){ //gestore dell'interruptdi device, ho come argomento la
 	}
 
 }
+
+/*
 void intTerm(int int_no) {
 	memaddr *line = (memaddr *) CDEV_BITMAP_ADDR(IL_TERMINAL);
 	int devno = firstDevice(*line);
@@ -125,8 +127,8 @@ void intTerm(int int_no) {
 	
 	LDST(&currentProcess->p_s);
 }
+*/
 
-/*
 void intTerm(int int_no){
 	int devnumb;
 	memaddr  *pending;
@@ -169,7 +171,7 @@ void intTerm(int int_no){
 
 	}
 }
-*/
+
 void intTimer(){
 	tprint("intTimer\n");
 	if (current_timer=TIME_SLICE){

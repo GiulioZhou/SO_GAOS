@@ -1391,6 +1391,13 @@ Ho aggiunto una funzione rubata a Giacomo per stampare le variabili (esadecnmali
 
 Ho aggiunto il primo processo nei processi attivi e gli ho assegnato manualmente un pid
 
+Avete fatto un po di confusione nell’interrupt Handler con il pc, l’old area ecc… 
+Al momento “funziona” ma è da sistemare
+Il retState è inutile a mio avviso, lo metto in commento
+
+Secondo me lo scheduler decisamente non funziona >.> però non so bene perché, ora vedo cosa riesco a fare
+
+
 
 
 
