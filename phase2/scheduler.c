@@ -50,7 +50,7 @@ void scheduler() {
 void initScheduler(){
 	
 	setTIMER(0);
-	schedNext();
+	scheduler();
 	
 }
 
