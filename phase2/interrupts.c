@@ -84,7 +84,7 @@ void intHandler(){
 		tprint("print\n");
 	}
 	else if (CAUSE_IP_GET(cause, IL_TERMINAL)){
-		intTerm(IL_TERMINAL);
+		intTerm();
 		tprint("terminal\n");
 	}
 
@@ -99,6 +99,7 @@ void intDev(int int_no){ //gestore dell'interruptdi device, ho come argomento la
 	int *sem; //semaforo su cui siamo bloccati
 	pcb_t *unblck_proc; //processo appena sbloccato
 	dtpreg_t *devReg; //registro del device
+	
 	pending= (memaddr *)CDEV_BITMAP_ADDR(int_no);//indirizzo della bitmap dove ci dice su quali device pendono gli interrupt
 	devnumb= device_numb(pending);//prendiamo solo uno dei device su cui pendiamo
 	sem=&devices[int_no-DEV_IL_START][devnumb];
@@ -129,22 +130,25 @@ void intTerm(int int_no) {
 }
 */
 
-void intTerm(int int_no){
+void intTerm(){
 	int devnumb;
 	memaddr  *pending;
 	int *sem; //semaforo su cui siamo bloccati
 	pcb_t *unblck_proc; //processo appena sbloccato
 	termreg_t *termReg; //registro del device
-	pending= (memaddr *)CDEV_BITMAP_ADDR(int_no);//indirizzo della bitmap dove ci dice su quali device pendono gli interrupt
-	devnumb= device_numb(pending); //prendiamo solo uno dei device su cui pendiamo
+	
+	pending= (memaddr *)CDEV_BITMAP_ADDR(IL_TERMINAL);//indirizzo della bitmap dove ci dice su quali device pendono gli interrupt
+	devnumb= firstDevice(*pending); //prendiamo solo uno dei device su cui pendiamo
+	//devnumb= device_numb(pending); //prendiamo solo uno dei device su cui pendiamo
+	termReg=(termreg_t *)DEV_REG_ADDR(IL_TERMINAL, devnumb);
 
-	termReg=(termreg_t *)DEV_REG_ADDR(int_no, devnumb);
-
+	
+	
 	//Scrivere ha la priorità sul leggere, quidni prima leggiamo :
 	//????? magari scriviamo prima?
 	if ((termReg->transm_status & DEV_TERM_STATUS)== DEV_TTRS_S_CHARTRSM){//le cose in maiuscolo sono in uARMconst
 
-		sem=&devices[int_no-DEV_IL_START][devnumb];//se è trasmissione allora il semaforo è quello di trasmissione
+		sem=&devices[IL_TERMINAL-DEV_IL_START][devnumb];//se è trasmissione allora il semaforo è quello di trasmissione
 		termReg->transm_command=DEV_C_ACK;//riconosco l'interrupt
 	tprint("Ora vedo se mi devo bloccare\n");
 		if (*sem < 1){

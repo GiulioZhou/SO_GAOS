@@ -1397,7 +1397,10 @@ Il retState è inutile a mio avviso, lo metto in commento
 
 Secondo me lo scheduler decisamente non funziona >.> però non so bene perché, ora vedo cosa riesco a fare
 
-
+l’intTerm fa crashare uArm lol
+Ho modificato intTerm e il prototype togliendo l’argomento int_no che ritengo inutile, e 
+sostituito dentro la funzione int_no con IL_TERMINAL (perché tanto è l’unico argomento che gli
+verra mai passato
 
 
 
