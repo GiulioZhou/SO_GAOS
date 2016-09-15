@@ -11,7 +11,7 @@
 typedef unsigned char byte;
 
 byte firstDevice(byte bitmap) {
-	uint n;
+	unsigned int n;
 	for (n = 0; n < 8; n++, bitmap/= 2) {
 		if (bitmap & 1) return n;
 	}
@@ -115,14 +115,14 @@ void intDev(int int_no){ //gestore dell'interruptdi device, ho come argomento la
 
 }
 
-void intTerm() {
+void intTerm(int int_no) {
 	memaddr *line = (memaddr *) CDEV_BITMAP_ADDR(IL_TERMINAL);
 	int devno = firstDevice(*line);
 	
 	termreg_t *reg = (termreg_t *) DEV_REG_ADDR(IL_TERMINAL, devno);
 	reg->transm_command = DEV_C_ACK;
 	
-	LDST(&current_process->p_s);
+	LDST(&currentProcess->p_s);
 }
 
 /*
