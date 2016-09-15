@@ -88,10 +88,13 @@ void scheduler(){
 	if( clock_end <= slice_end ){	//salvo quale timer è stato settato -> Ci serve saperlo?
 		setTIMER(clock_end);
 		current_timer = PSEUDO_CLOCK;
+		tprint("set clock end\n");
 	}
 	else{
 		setTIMER(slice_end);
 		current_timer = TIME_SLICE;
+		tprint("set slice end\n");
+
 	}
 
 	if (currentProcess==NULL){
