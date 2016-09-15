@@ -151,7 +151,7 @@ void intTerm(){
 		sem=&devices[IL_TERMINAL-DEV_IL_START][devnumb];//se è trasmissione allora il semaforo è quello di trasmissione
 		termReg->transm_command=DEV_C_ACK;//riconosco l'interrupt
 	tprint("Ora vedo se mi devo bloccare\n");
-		if (*sem < 0){
+		if (*sem < 1){
 	tprint("mi devo bloccare\n");
 			unblck_proc = headBlocked(sem);
 			semaphoreOperation(sem,1);
