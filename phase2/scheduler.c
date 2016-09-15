@@ -12,7 +12,7 @@ unsigned int CPUTimeStart = 0;			//per contare il CPUTime del processo corrente
 unsigned int pseudo_clock_start = 0;	//ultima partenza dello pseudo clock
 unsigned int current_timer;				//quale dei due timer ( pseudo clock o time slice ) alzerà un interrupt per primo
 
-
+/*
 void loadAndRun() {
 	// Get next process
 	currentProcess = removeProcQ(&readyQueue);
@@ -55,8 +55,8 @@ void initScheduler(){
 }
 
 
+*/
 
-/*
 
 void initScheduler(){
 	
@@ -115,7 +115,7 @@ void scheduler(){
 	userTimeStart = getTODLO();	//riparte il conteggio del tempo utente perché noi entriamo nello scheduler come kernel quindi dobbiamo far ripartire il tempo utente quando usciamo
 	tprint("ora carico il processo\n");
 	LDST( &currentProcess->p_s );	//carico nel processore lo stato del processo scelto come prossimo
-	
+	tprint("errore");
 }
 
-*/
+
