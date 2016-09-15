@@ -8,6 +8,16 @@
 #include <libuarm.h>
 #include <arch.h>
 
+typedef unsigned char byte;
+
+byte firstDevice(byte bitmap) {
+	unsigned int n;
+	for (n = 0; n < 8; n++, bitmap/= 2) {
+		if (bitmap & 1) return n;
+	}
+	return -1;
+}
+
 cputime_t interStart; //mi sa che devo farla globale
 
 int device_numb(memaddr *pending){
