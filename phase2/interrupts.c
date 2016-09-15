@@ -160,6 +160,8 @@ void intTerm(){
 			}
 
 		}
+		LDST(&currentProcess->p_s);
+
 
 	}
 	else if ((termReg->recv_status & DEV_TERM_STATUS) == DEV_TRCV_S_CHARRECV){
