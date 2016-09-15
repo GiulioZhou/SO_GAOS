@@ -13,14 +13,44 @@ unsigned int pseudo_clock_start = 0;	//ultima partenza dello pseudo clock
 unsigned int current_timer;				//quale dei due timer ( pseudo clock o time slice ) alzerà un interrupt per primo
 
 
+void loadAndRun() {
+	// Get next process
+	currentProcess = removeProcQ(&ready_queue);
+	
+	// Prepare timer
+	time_slice_start = getTODLO();
+	setTIMER(getTIMER()+0xd900);
+	
+	// Load the process in the CPU
+	LDST(&currentProcess->p_s);
+}
+
+void schedNext() {
+	// Set aside the old current process
+	if (currentProcess) {
+		currentProcess->processor_time+= getTODLO()-time_slice_start;
+		insertProcQ(&ready_queue, currentProcess);
+		currentProcess = NULL;
+	}
+	
+	// Check if there are other processes to run
+	if (clist_empty(ready_queue)) {
+#ifdef DEBUG
+		tprint("Ready queue empty\n");
+#endif
+		WAIT();
+	}
+	
+	// Load the next process and run it
+	loadAndRun();
+}
+
+
+
 void scheduler(){
 	
 	setTIMER(0);
-	currentProcess = removeProcQ(&readyQueue);
-	time_slice_start=getTODLO();
-	setTIMER(getTIMER()+0xd900);
-	
-	LDST( &currentProcess->p_s );
+	schedNext();
 	
 }
 

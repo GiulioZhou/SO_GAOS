@@ -88,7 +88,7 @@ void intHandler(){
 		tprint("terminal\n");
 	}
 
-	scheduler();
+	schedNext();
 }
 
 
