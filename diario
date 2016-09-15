@@ -1389,6 +1389,8 @@ Sys9 SEMBRA ok
 
 Ho aggiunto una funzione rubata a Giacomo per stampare le variabili (esadecnmali) e una per stampare lo state
 
+Ho aggiunto il primo processo nei processi attivi e gli ho assegnato manualmente un pid
+
 
 
 

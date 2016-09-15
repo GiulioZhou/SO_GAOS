@@ -13,8 +13,19 @@ unsigned int pseudo_clock_start = 0;	//ultima partenza dello pseudo clock
 unsigned int current_timer;				//quale dei due timer ( pseudo clock o time slice ) alzerà un interrupt per primo
 
 
+void scheduler(){
+	
+	setTIMER(0);
+	currentProcess = removeProcQ(&readyQueue);
+	time_slice_start=getTODLO();
+	setTIMER(getTIMER()+0xd900);
+	
+	LDST( &currentProcess->p_s );
+	
+}
 
 
+/*
 
 
 void scheduler(){
@@ -69,5 +80,5 @@ void scheduler(){
 	LDST( &currentProcess->p_s );	//carico nel processore lo stato del processo scelto come prossimo
 
 }
-
+*/
 
