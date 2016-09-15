@@ -29,12 +29,12 @@ void schedNext() {
 	// Set aside the old current process
 	if (currentProcess) {
 		//currentProcess->processor_time+= getTODLO()-time_slice_start;
-		insertProcQ(&ready_queue, currentProcess);
+		insertProcQ(&readyQueue, currentProcess);
 		currentProcess = NULL;
 	}
 	
 	// Check if there are other processes to run
-	if (clist_empty(ready_queue)) {
+	if (clist_empty(readyQueue)) {
 #ifdef DEBUG
 		tprint("Ready queue empty\n");
 #endif
