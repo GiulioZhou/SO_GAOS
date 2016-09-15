@@ -57,7 +57,7 @@ void intHandler(){
 		currentProcess->p_userTime += interStart - userTimeStart;
 		currentProcess->p_CPUTime += interStart - CPUTimeStart;
 		//copyState( retState, &currentProcess->p_s );
-		copyState(&currentProcess->p_s, INT_OLDAREA);
+		copyState(&currentProcess->p_s, (state_t*)INT_OLDAREA);
 		currentProcess->p_s.pc -= 4;
 		
 	}
@@ -88,7 +88,7 @@ void intHandler(){
 		tprint("terminal\n");
 	}
 
-	schedNext();
+	scheduler();
 }
 
 
@@ -151,13 +151,14 @@ void intTerm(){
 		sem=&devices[IL_TERMINAL-DEV_IL_START][devnumb];//se è trasmissione allora il semaforo è quello di trasmissione
 		termReg->transm_command=DEV_C_ACK;//riconosco l'interrupt
 	tprint("Ora vedo se mi devo bloccare\n");
-		if (*sem < 1){
+		if (*sem < 0){
 	tprint("mi devo bloccare\n");
 			unblck_proc = headBlocked(sem);
 			semaphoreOperation(sem,1);
 			if (unblck_proc!=NULL){
 				unblck_proc->p_s.a1=termReg->transm_status;
 			}
+
 		}
 
 	}
@@ -172,6 +173,7 @@ void intTerm(){
 				unblck_proc->p_s.a1=termReg->recv_status;
 			}
 		}
+		LDST(&currentProcess->p_s);
 
 	}
 }
