@@ -82,8 +82,12 @@ void printState(state_t s) {
 
 //extern void test();
 
-void testfun(){		//Il processo da far partire
-
+void testfun() {
+	uint pid = SYSCALL(GETPID, 0, 0, 0);
+	tprint("Started process ");
+	printHex(pid);
+	for (;;) tprint("abc\n");
+	WAIT();
 }
 
 //variabili globali
