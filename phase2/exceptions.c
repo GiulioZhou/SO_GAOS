@@ -75,7 +75,7 @@ void sysBpHandler(){
 	copyState(&currentProcess->p_s, sysBp_old);
 	
 	int cause = CAUSE_EXCCODE_GET(currentProcess->p_s.CP15_Cause);		//Prendo la causa dell'eccezzione
-
+	
 	// Salva i parametri delle SYSCALL
 	unsigned int sysc = sysBp_old->a1;
 	unsigned int argv1 = sysBp_old->a2;
@@ -100,6 +100,7 @@ void sysBpHandler(){
 					break;
 					
 				case TERMINATEPROCESS:
+					tprint("terminate process\n");
 					terminateProcess((pid_t) argv1);
 					
 					break;
@@ -150,8 +151,7 @@ void sysBpHandler(){
 			}
 			
 			if(currentProcess){
-				tprint("???\n");
-				 LDST(&currentProcess->p_s);
+				LDST(&currentProcess->p_s);
 			}
 			else {				tprint("no currproc\n"); scheduler();}
 			
@@ -189,7 +189,7 @@ pid_t createProcess(state_t *statep){
 		copyState(&newp->p_s, statep); //Inizializzazione dello state
 		processCount++;
 		pid=newPid(newp);	//pidCounter progressivo
-
+		
 		insertChild(currentProcess, newp);
 		insertProcQ(&readyQueue, newp);
 		
@@ -204,7 +204,7 @@ void terminateProcess(pid_t pid){
 	pcb_t *pChild;
 	pcb_t *pSib;
 	int isSuicide;
-	
+	tprint("1\n");
 	pToKill = NULL;
 	isSuicide = FALSE;
 	
@@ -217,27 +217,34 @@ void terminateProcess(pid_t pid){
 	else{
 		isSuicide = TRUE;
 	}
+	tprint("2\n");
+	printHex(isSuicide);
 	
 	/* if(currentProcess->p_pid == pid || pid == 0){ //preferisco in quest'altro modo ma fa un controllo in più >.>
 		if(pid == 0){
-			pid = currentProcess->p_pid;
+	 pid = currentProcess->p_pid;
 		}
 		isSuicide = TRUE;
-	}*/
-
-	pToKill = active_pcb[pid-1]; //Pcb da eliminare
+	 }*/
 	
-	if(pToKill == NULL)
-		PANIC(); //qui ritornava -1 ma visto che io non faccio ritornare mando in PANIC in caso di errore
+	pToKill = active_pcb[pid-1]; //Pcb da eliminare
+	if(pToKill == NULL){
+		tprint("3\n");
+		
+		PANIC();} //qui ritornava -1 ma visto che io non faccio ritornare mando in PANIC in caso di errore
 	
 	if(onSem(pToKill)){
+		tprint("4\n");
+		
 		if(!onDev(pToKill)){	//bloccato su un device
 			semaphoreOperation ((int*)pToKill->p_cursem, pToKill->p_resource); //libero risorse prenotate
 			pToKill = outBlocked(pToKill);	//tolgo dalla lista dei processi bloccati sul semaforo
-			
+			tprint("5\n");
 			if (pToKill == NULL)
-				PANIC();
-		
+				tprint("6\n");
+			
+			PANIC();
+			
 		}
 		else{	//non bloccato su un device
 			softBlockCount--;	//qui o nell'interrupt handler?
@@ -249,12 +256,18 @@ void terminateProcess(pid_t pid){
 		terminateProcess(pChild->p_pid);	//come vedere se non ci sono stati errori?
 	}
 	
-	if((pToKill = outChild(pToKill)) == NULL) // scolleghiamo il processo dal suo genitore
-		PANIC();
-	else{
-		active_pcb[pid-1] = NULL;
-		freePcb(pToKill);
+	if(pToKill->p_parent!=NULL){
+		if((pToKill = outChild(pToKill)) == NULL){ // scolleghiamo il processo dal suo genitore
+			tprint("7\n");
+			
+			PANIC();
+		}
 	}
+	
+	active_pcb[pid-1] = NULL;
+	freePcb(pToKill);
+	
+	
 	
 	if(isSuicide == TRUE)
 		currentProcess = NULL;
@@ -269,7 +282,7 @@ void semaphoreOperation (int *semaddr, int weight){
 	if (weight==0){
 		tprint("weight 0\n");
 		terminateProcess(0);	//oppure SYSCALL(TERMINATEPROCESS, SYSCALL(GETPID));
-
+		
 	}
 	else{
 		tprint("wight diverso da 0\n");

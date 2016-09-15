@@ -83,10 +83,15 @@ void printState(state_t s) {
 //extern void test();
 
 void testfun() {
-	//pid_t pid = SYSCALL(GETPID, 0, 0, 0);
+	pid_t pid = SYSCALL(GETPID, 0, 0, 0);
 	tprint("Started process ");
-	printHex(1);
-	for (;;) tprint("abc\n");
+	printHex(pid);
+	
+	SYSCALL (TERMINATEPROCESS, pid, 0, 0);
+
+	
+	SYSCALL (TERMINATEPROCESS, pid, 0, 0);
+	for (;;) tprint("xyz\n");
 	WAIT();
 }
 
@@ -168,8 +173,7 @@ int main(){
 	
 	first = allocPcb();
 	
-	active_pcb[0]=first;
-	first->p_pid=1; //newPid
+	newPid(first); //newPid
 	
 	first->p_s.cpsr = STATUS_ENABLE_INT(first->p_s.cpsr) | STATUS_ENABLE_TIMER(first->p_s.cpsr) | STATUS_SYS_MODE;
 	first->p_s.sp = RAM_TOP - FRAME_SIZE;

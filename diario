@@ -1401,5 +1401,9 @@ Ho modificato intTerm e il prototype togliendo l’argomento int_no che ritengo 
 sostituito dentro la funzione int_no con IL_TERMINAL (perché tanto è l’unico argomento che gli
 verra mai passato
 
+Giulio & Olga
+
+Abbiamo capito che c’è qualche problema con la empty, non possiamo fare !clistEmpty perché boh
+
 
 

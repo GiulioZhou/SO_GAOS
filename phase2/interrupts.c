@@ -41,18 +41,18 @@ int device_numb(memaddr *pending){
 
 
 void intHandler(){
-
+	
 	// state_t *retState;
 	int cause;
-
+	
 	interStart = getTODLO();	//salvo il tempo in cui cominciamo la gestione
-/*
-	Decremento pc all'istruzione che stavamo eseguendo  --> riguardare
-	retState = (state_t *) INT_OLDAREA;
-	retState->pc = retState->pc - 4;
-*/
+	/*
+	 Decremento pc all'istruzione che stavamo eseguendo  --> riguardare
+	 retState = (state_t *) INT_OLDAREA;
+	 retState->pc = retState->pc - 4;
+	 */
 	cause = getCAUSE();		//salvo la causa dell'interrupt
-
+	
 	if(currentProcess != NULL){
 		currentProcess->p_userTime += interStart - userTimeStart;
 		currentProcess->p_CPUTime += interStart - CPUTimeStart;
@@ -61,7 +61,7 @@ void intHandler(){
 		currentProcess->p_s.pc -= 4;
 		
 	}
-
+	
 	//gestisci in base alla causa
 	if (CAUSE_IP_GET(cause, IL_TIMER)){	//Pseudoclock o time-slice
 		tprint("fine timer\n");
@@ -77,7 +77,7 @@ void intHandler(){
 	}
 	else if (CAUSE_IP_GET(cause, IL_ETHERNET)){
 		intDev(IL_ETHERNET);
-				tprint("eth\n");
+		tprint("eth\n");
 	}
 	else if (CAUSE_IP_GET(cause, IL_PRINTER)){
 		intDev(IL_PRINTER);
@@ -87,7 +87,6 @@ void intHandler(){
 		intTerm();
 		tprint("terminal\n");
 	}
-
 	scheduler();
 }
 
@@ -106,31 +105,51 @@ void intDev(int int_no){ //gestore dell'interruptdi device, ho come argomento la
 	devReg= (dtpreg_t *) DEV_REG_ADDR(int_no, devnumb);
 	//da qui in poi Sara fai attenzione a come uso i puntatori che come al solito non sono sicura
 	devReg->command = DEV_C_ACK;	//passo l'acknowledgement (DEV_C_ACK sta in uARMconst)
-
+	
 	if (*sem < 1){
 		unblck_proc = headBlocked(sem);
 		semaphoreOperation(sem,1); //device starting interrupt line DEVINTBASE = 3 --> const.h
 		if (unblck_proc!=NULL){
-
+			
 			unblck_proc->p_s.a1=devReg->status;
 		}
 	}
+	
+}
 
+
+void intTerm() {
+	memaddr *pending = (memaddr *) CDEV_BITMAP_ADDR(IL_TERMINAL);
+	int devnumb = firstDevice(*pending);
+	termreg_t *termReg = (termreg_t *) DEV_REG_ADDR(IL_TERMINAL, devnumb);
+	
+	//roba nostra
+	int *sem;
+	pcb_t *unblck_proc;
+	
+	
+	if ((termReg->transm_status & DEV_TERM_STATUS)== DEV_TTRS_S_CHARTRSM){//le cose in maiuscolo sono in uARMconst
+		
+		sem=&devices[IL_TERMINAL-DEV_IL_START][devnumb];//se è trasmissione allora il semaforo è quello di trasmissione
+		
+		termReg->transm_command = DEV_C_ACK;
+		
+		if (*sem < 1){
+			tprint("mi devo bloccare\n");
+			unblck_proc = headBlocked(sem);
+			semaphoreOperation(sem,1);
+			if (unblck_proc!=NULL){
+				unblck_proc->p_s.a1=termReg->transm_status;
+			}
+		}
+	LDST(&currentProcess->p_s);	//Problem here
+
+	}
+	
 }
 
 /*
-void intTerm(int int_no) {
-	memaddr *line = (memaddr *) CDEV_BITMAP_ADDR(IL_TERMINAL);
-	int devno = firstDevice(*line);
-	
-	termreg_t *reg = (termreg_t *) DEV_REG_ADDR(IL_TERMINAL, devno);
-	reg->transm_command = DEV_C_ACK;
-	
-	LDST(&currentProcess->p_s);
-}
-*/
-
-void intTerm(){
+ void intTerm(){
 	int devnumb;
 	memaddr  *pending;
 	int *sem; //semaforo su cui siamo bloccati
@@ -141,45 +160,46 @@ void intTerm(){
 	devnumb= firstDevice(*pending); //prendiamo solo uno dei device su cui pendiamo
 	//devnumb= device_numb(pending); //prendiamo solo uno dei device su cui pendiamo
 	termReg=(termreg_t *)DEV_REG_ADDR(IL_TERMINAL, devnumb);
-
+	
 	
 	
 	//Scrivere ha la priorità sul leggere, quidni prima leggiamo :
 	//????? magari scriviamo prima?
 	if ((termReg->transm_status & DEV_TERM_STATUS)== DEV_TTRS_S_CHARTRSM){//le cose in maiuscolo sono in uARMconst
-
-		sem=&devices[IL_TERMINAL-DEV_IL_START][devnumb];//se è trasmissione allora il semaforo è quello di trasmissione
-		termReg->transm_command=DEV_C_ACK;//riconosco l'interrupt
-	tprint("Ora vedo se mi devo bloccare\n");
-		if (*sem < 1){
-	tprint("mi devo bloccare\n");
-			unblck_proc = headBlocked(sem);
-			semaphoreOperation(sem,1);
-			if (unblck_proc!=NULL){
-				unblck_proc->p_s.a1=termReg->transm_status;
-			}
-
-		}
-		LDST(&currentProcess->p_s);
-
-
+ 
+ //sem=&devices[IL_TERMINAL-DEV_IL_START][devnumb];//se è trasmissione allora il semaforo è quello di trasmissione
+ termReg->transm_command=DEV_C_ACK;//riconosco l'interrupt
+ tprint("Ora vedo se mi devo bloccare\n");
+ if (*sem < 1){
+ tprint("mi devo bloccare\n");
+ unblck_proc = headBlocked(sem);
+ semaphoreOperation(sem,1);
+ if (unblck_proc!=NULL){
+ unblck_proc->p_s.a1=termReg->transm_status;
+ }
+ 
+ }
+ tprint("hi\n");
+ LDST(&currentProcess->p_s);
+ PANIC();
+ 
 	}
 	else if ((termReg->recv_status & DEV_TERM_STATUS) == DEV_TRCV_S_CHARRECV){
-		sem=&devices[IL_TERMINAL-DEV_IL_START+1][devnumb];//se è di ricevere allora il semaforo è l'ultimo
-		termReg->recv_command=DEV_C_ACK;
-
-		if (*sem < 1){
-			unblck_proc = headBlocked(sem);
-			semaphoreOperation(sem,1); //device starting interrupt line DEVINTBASE = 3 --> const.h
-			if (unblck_proc!=NULL){
-				unblck_proc->p_s.a1=termReg->recv_status;
-			}
-		}
-		LDST(&currentProcess->p_s);
-
+ sem=&devices[IL_TERMINAL-DEV_IL_START+1][devnumb];//se è di ricevere allora il semaforo è l'ultimo
+ termReg->recv_command=DEV_C_ACK;
+ 
+ if (*sem < 1){
+ unblck_proc = headBlocked(sem);
+ semaphoreOperation(sem,1); //device starting interrupt line DEVINTBASE = 3 --> const.h
+ if (unblck_proc!=NULL){
+ unblck_proc->p_s.a1=termReg->recv_status;
+ }
+ }
+ LDST(&currentProcess->p_s);
+ 
 	}
-}
-
+ }
+ */
 void intTimer(){
 	tprint("intTimer\n");
 	if (current_timer=TIME_SLICE){
@@ -190,7 +210,7 @@ void intTimer(){
 		}
 	}else if (current_timer=PSEUDO_CLOCK){
 		while (&pseudoClock < 0){
-			semaphoreOperation (&pseudoClock, 1); 
+			semaphoreOperation (&pseudoClock, 1);
 		}
 	}
 }
