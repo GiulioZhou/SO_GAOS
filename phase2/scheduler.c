@@ -15,7 +15,7 @@ unsigned int current_timer;				//quale dei due timer ( pseudo clock o time slice
 
 void loadAndRun() {
 	// Get next process
-	currentProcess = removeProcQ(&ready_queue);
+	currentProcess = removeProcQ(&readyQueue);
 	
 	// Prepare timer
 	time_slice_start = getTODLO();
@@ -28,7 +28,7 @@ void loadAndRun() {
 void schedNext() {
 	// Set aside the old current process
 	if (currentProcess) {
-		currentProcess->processor_time+= getTODLO()-time_slice_start;
+		//currentProcess->processor_time+= getTODLO()-time_slice_start;
 		insertProcQ(&ready_queue, currentProcess);
 		currentProcess = NULL;
 	}
