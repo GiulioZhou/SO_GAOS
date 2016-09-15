@@ -16,6 +16,7 @@ extern unsigned int pseudo_clock_start;
 //quale dei due timer ( pseudo clock o time slice ) alzerà un interrupt per primo
 extern unsigned int current_timer;
 
-extern void schedNext();
+extern void scheduler();
+extern void initScheduler();
 
 #endif /* SCHED_H_INCLUDED */
