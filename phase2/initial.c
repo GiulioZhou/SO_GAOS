@@ -163,6 +163,9 @@ int main(){
 	
 	first = allocPcb();
 	
+	active_pcb[0]=first;
+	first.p_pid=1;
+	
 	first->p_s.cpsr = STATUS_ENABLE_INT(first->p_s.cpsr) | STATUS_ENABLE_TIMER(first->p_s.cpsr) | STATUS_SYS_MODE;
 	first->p_s.sp = RAM_TOP - FRAME_SIZE;
 	first->p_s.pc = (memaddr)testfun;	//Ricorda di modificare qui e sopra
