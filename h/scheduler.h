@@ -6,7 +6,7 @@
 #define TIME_SLICE 1
 
 //ultima partenza del time slice
-extern unsigned int last_slice_start;
+extern unsigned int time_slice_start;
 //per contare lo userTime del processo corrente
 extern unsigned int userTimeStart;
 //per contare il CPUTime del processo corrente
