@@ -1,4 +1,5 @@
 #include <pcb.h>
+#include <systemcall.h>
 #include <asl.h>
 #include <initial.h>
 #include <scheduler.h>
@@ -54,8 +55,14 @@ void intHandler(){
 	cause = getCAUSE();		//salvo la causa dell'interrupt
 	
 	if(currentProcess != NULL){
+		//printHex(userTimeStart);
+	//	printHex(CPUTimeStart);
+		//arrivati qua c'è già un po di usertime...
+		
 		currentProcess->p_userTime += interStart - userTimeStart;
 		currentProcess->p_CPUTime += interStart - CPUTimeStart;
+		
+		
 		//copyState( retState, &currentProcess->p_s );
 		copyState(&currentProcess->p_s, (state_t*)INT_OLDAREA);
 		currentProcess->p_s.pc -= 4;
@@ -64,7 +71,7 @@ void intHandler(){
 	
 	//gestisci in base alla causa
 	if (CAUSE_IP_GET(cause, IL_TIMER)){	//Pseudoclock o time-slice
-		tprint("fine timer\n");
+		//tprint("fine timer\n");
 		intTimer();
 	}
 	else if (CAUSE_IP_GET(cause, IL_DISK)){
@@ -131,11 +138,12 @@ void intTerm() {
 	if ((termReg->transm_status & DEV_TERM_STATUS)== DEV_TTRS_S_CHARTRSM){//le cose in maiuscolo sono in uARMconst
 		
 		sem=&devices[IL_TERMINAL-DEV_IL_START][devnumb];//se è trasmissione allora il semaforo è quello di trasmissione
-		
+		//printHex(IL_TERMINAL);
+		//printHex(devnumb);
 		termReg->transm_command = DEV_C_ACK;
 		
 		if (*sem < 1){
-			tprint("mi devo bloccare\n");
+			//tprint("mi devo bloccare\n");
 			unblck_proc = headBlocked(sem);
 			semaphoreOperation(sem,1);
 			if (unblck_proc!=NULL){
@@ -201,16 +209,18 @@ void intTerm() {
  }
  */
 void intTimer(){
-	tprint("intTimer\n");
+	//tprint("intTimer\n");
 	if (current_timer=TIME_SLICE){
 		if (currentProcess!=NULL){
 			insertProcQ(&readyQueue, currentProcess);
-			//currentProcess->p_CPUTime += getTODLO() - interStart; // che senso ha???
+			currentProcess->p_CPUTime += getTODLO() - interStart; // che senso ha???
 			currentProcess=NULL;
+		//	tprint("fine time slice\n");
 		}
 	}else if (current_timer=PSEUDO_CLOCK){
 		while (&pseudoClock < 0){
 			semaphoreOperation (&pseudoClock, 1);
 		}
+		tprint("fine pseudo clock\n");
 	}
 }

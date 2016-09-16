@@ -1405,5 +1405,28 @@ Giulio & Olga
 
 Abbiamo capito che c’è qualche problema con la empty, non possiamo fare !clistEmpty perché boh
 
+Abbiamo fatto tante cose ma non abbiamo scritto niente quindi sorry Sara
+
+16/9
+
+Il problema nella SYS10 è che dal momento della trasmissione a quella del return, non fa in tempo a modificare
+lo status, il che è un problema… 
+Al momento ho risolto mettendo un tprint(“”); che non fa nulla se non prendere tempo, brutto ma funziona
+Inoltre il semaforo tocca metterlo prima di ogni return, al momento l ho messo solo sulla transmit, propongo
+di tenere una variabile per il valore di ritorno e fare solo un return alla fine.
+
+Spostato tutte le syscall in un nuovo file, modificato il makefile
+
+Problema: se tolgo la tprint sul semop non funziona più niente... e non so perchè...
+
+Problema: lo pseudoclock scade, ma non raisa l'interrupt
+
+Problema: Lo usr time è sempre più veloce del CPU il che non ha senso
+	Praticamente quando si entra in system mode nelle sysbphandler avete salvato (giustamente) il
+	tempo dello user.
+	Il problema è che nel mezzo dell'handler può scadere il timer, generando un interrupt, il quale
+	aggiornerà entrambi i timer, il che ha senso, però il timer dello user era già aggiornato (in
+	questo specifico esempio)
+	Al momento ho "risolto" togliendo quell'update dentro alla sysbp ma non ha senso, però funziona...
 
 

@@ -36,6 +36,9 @@
  */
 #define HEX_DIGITS 8
 
+extern void testfun();
+
+
 //Stampa un numero esadecimale
 inline void printHex(size_t n) {
 	char str[3+HEX_DIGITS];
@@ -79,21 +82,42 @@ void printState(state_t s) {
 	tprint("--- END STATE ---\n");
 
 }
+/*
+#define QPAGE			1024
 
-//extern void test();
-
+void p2(){
+	tprint("hello it's p2 here\n");
+	SYSCALL (TERMINATEPROCESS, 0, 0, 0);
+}
+*/
+/*
 void testfun() {
 	pid_t pid = SYSCALL(GETPID, 0, 0, 0);
 	tprint("Started process ");
 	printHex(pid);
 	
-	SYSCALL (TERMINATEPROCESS, pid, 0, 0);
-
 	
-	SYSCALL (TERMINATEPROCESS, pid, 0, 0);
-	for (;;) tprint("xyz\n");
+	
+	state_t p2state;
+	STST(&p2state);
+	p2state.sp = p2state.sp - QPAGE;
+	
+	p2state.pc = (memaddr)p2;
+	
+	p2state.cpsr = STATUS_ALL_INT_ENABLE(p2state.cpsr);
+	
+	SYSCALL(CREATEPROCESS, (int)&p2state, 0, 0);
+	tprint("ciao");
+	
+	
+	//SYSCALL (TERMINATEPROCESS, pid, 0, 0);
+//	for (;;) tprint("xyz\n");
 	WAIT();
 }
+ */
+
+
+
 
 //variabili globali
 
@@ -182,7 +206,8 @@ int main(){
 	insertProcQ(&readyQueue, first);
 	processCount++;
 	
-	initScheduler();
 	
+//	initScheduler();
+	scheduler();
 	return 0;
 }

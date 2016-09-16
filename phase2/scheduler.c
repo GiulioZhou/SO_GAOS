@@ -58,16 +58,8 @@ void initScheduler(){
 */
 
 
-void initScheduler(){
-	
-	//time_slice_start = getTODLO();
-	//setTIMER(0);
-	scheduler();
-	
-}
-
 void scheduler(){
-	/*
+//	tprint("chiamato lo scheduler!\n");
 	//RIVEDERE se è garantito che lo pseudo clock scatta ogni 100 millisecondi
 	unsigned int time = getTODLO(); // mi salvo quando sono entrato nello scheduler
 	//controllo se è finito il time slice o lo pseudo-clock, se uno dei due è finito, vuol dire che lo scheduler è stato chiamaato
@@ -78,7 +70,7 @@ void scheduler(){
 	if( slice_end <= 0 || currentProcess==NULL && slice_end > 0 ){ //time slice terminato o metto in escuzione un nuovo processo, setta il prossimo
 		time_slice_start = time;
 		slice_end = SCHED_TIME_SLICE;
-		tprint("time slice terminato\n");
+	//	tprint("time slice terminato\n");
 	}
 	
 	if( clock_end <=0 ){	//pseudo clock terminato, setta il prossimo
@@ -90,15 +82,15 @@ void scheduler(){
 	if( clock_end <= slice_end ){	//salvo quale timer è stato settato -> Ci serve saperlo?
 		setTIMER(clock_end);
 		current_timer = PSEUDO_CLOCK;
-		tprint("set clock end\n");
+	//	tprint("set clock end\n");
 	}
 	else{
 		setTIMER(slice_end);
 		current_timer = TIME_SLICE;
-		tprint("set slice end\n");
+	//	tprint("set slice end\n");
 
 	}
-
+/*
 	if (currentProcess==NULL){
 		if( !clist_empty(readyQueue) ){
 			currentProcess = removeProcQ(&readyQueue);
@@ -107,7 +99,7 @@ void scheduler(){
 		else{
 	 
 		}
-		CPUTimeStart = getTODLO();	//se comincia l'esecuzione di un nuovo processo riparte il conteggio del tempo di CPU
+			//se comincia l'esecuzione di un nuovo processo riparte il conteggio del tempo di CPU
 	}
 	
 	userTimeStart = getTODLO();	//riparte il conteggio del tempo utente perché noi entriamo nello scheduler come kernel quindi dobbiamo far ripartire il tempo utente quando usciamo
@@ -127,9 +119,13 @@ void scheduler(){
 		}
 		else
 			currentProcess = removeProcQ(&readyQueue);
+		
+		CPUTimeStart = getTODLO();
 
 	}
-	tprint("ora carico il processo\n");
+	userTimeStart = getTODLO();
+	
+	//tprint("ora carico il processo\n");
 	LDST( &currentProcess->p_s );	//carico nel processore lo stato del processo scelto come prossimo
 	tprint("errore");
 }

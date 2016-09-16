@@ -6,8 +6,8 @@ all: p2test.elf.core.uarm p2test.elf.stab.uarm
 p2test.elf.core.uarm p2test.elf.stab.uarm: p2test.elf
 	elf2uarm -k p2test.elf
 
-p2test.elf: pcb.o asl.o exceptions.o scheduler.o interrupts.o p2test.o initial.o
-	arm-none-eabi-ld -T $(INC_DIR)/ldscripts/elf32ltsarm.h.uarmcore.x -o p2test.elf $(INC_DIR)/crtso.o $(INC_DIR)/libuarm.o pcb.o asl.o initial.o exceptions.o scheduler.o interrupts.o p2test.o
+p2test.elf: pcb.o asl.o exceptions.o scheduler.o interrupts.o p2test.o initial.o systemcall.o
+	arm-none-eabi-ld -T $(INC_DIR)/ldscripts/elf32ltsarm.h.uarmcore.x -o p2test.elf $(INC_DIR)/crtso.o $(INC_DIR)/libuarm.o pcb.o asl.o initial.o exceptions.o scheduler.o interrupts.o p2test.o systemcall.o
 
 initial.o: ./phase2/initial.c $(DEFS)
 	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase2/initial.c
@@ -20,6 +20,9 @@ scheduler.o: ./phase2/scheduler.c $(DEFS)
 
 interrupts.o: ./phase2/interrupts.c $(DEFS)
 	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase2/interrupts.c
+
+systemcall.o: ./phase2/systemcall.c $(DEFS)
+	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase2/systemcall.c
 
 pcb.o: ./phase1/pcb.c $(DEFS)
 	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase1/pcb.c
