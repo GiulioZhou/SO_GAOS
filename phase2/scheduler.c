@@ -12,54 +12,7 @@ unsigned int CPUTimeStart = 0;			//per contare il CPUTime del processo corrente
 unsigned int pseudo_clock_start = 0;	//ultima partenza dello pseudo clock
 unsigned int current_timer;				//quale dei due timer ( pseudo clock o time slice ) alzerà un interrupt per primo
 
-/*
-void loadAndRun() {
-	// Get next process
-	currentProcess = removeProcQ(&readyQueue);
-	
-	// Prepare timer
-	time_slice_start = getTODLO();
-	setTIMER(getTIMER()+0xd900);
-	
-	// Load the process in the CPU
-	LDST(&currentProcess->p_s);
-}
-
-void scheduler() {
-	// Set aside the old current process
-	if (currentProcess) {
-		//currentProcess->processor_time+= getTODLO()-time_slice_start;
-		insertProcQ(&readyQueue, currentProcess);
-		currentProcess = NULL;
-	}
-	
-	// Check if there are other processes to run
-	if (clist_empty(readyQueue)) {
-#ifdef DEBUG
-		tprint("Ready queue empty\n");
-#endif
-		WAIT();
-	}
-	
-	// Load the next process and run it
-	loadAndRun();
-}
-
-
-
-void initScheduler(){
-	
-	setTIMER(0);
-	scheduler();
-	
-}
-
-
-*/
-
-
 void scheduler(){
-//	tprint("chiamato lo scheduler!\n");
 	//RIVEDERE se è garantito che lo pseudo clock scatta ogni 100 millisecondi
 	unsigned int time = getTODLO(); // mi salvo quando sono entrato nello scheduler
 	//controllo se è finito il time slice o lo pseudo-clock, se uno dei due è finito, vuol dire che lo scheduler è stato chiamaato
@@ -70,52 +23,35 @@ void scheduler(){
 	if( slice_end <= 0 || currentProcess==NULL && slice_end > 0 ){ //time slice terminato o metto in escuzione un nuovo processo, setta il prossimo
 		time_slice_start = time;
 		slice_end = SCHED_TIME_SLICE;
-	//	tprint("time slice terminato\n");
 	}
 	
 	if( clock_end <=0 ){	//pseudo clock terminato, setta il prossimo
 		pseudo_clock_start = time;
 		clock_end = SCHED_PSEUDO_CLOCK;
-		tprint("pseudo clock terminato\n");
+		
 	}
 	
 	if( clock_end <= slice_end ){	//salvo quale timer è stato settato -> Ci serve saperlo?
 		setTIMER(clock_end);
 		current_timer = PSEUDO_CLOCK;
-	//	tprint("set clock end\n");
 	}
 	else{
 		setTIMER(slice_end);
 		current_timer = TIME_SLICE;
-	//	tprint("set slice end\n");
 
 	}
-/*
-	if (currentProcess==NULL){
-		if( !clist_empty(readyQueue) ){
-			currentProcess = removeProcQ(&readyQueue);
-			tprint("impostato currentProcess\n");
-		}
-		else{
-	 
-		}
-			//se comincia l'esecuzione di un nuovo processo riparte il conteggio del tempo di CPU
-	}
-	
-	userTimeStart = getTODLO();	//riparte il conteggio del tempo utente perché noi entriamo nello scheduler come kernel quindi dobbiamo far ripartire il tempo utente quando usciamo
-	tprint("ora carico il processo\n");
- 
- */
 	if (currentProcess==NULL){
 		if( clist_empty(readyQueue) ){
 			if( processCount == 0 )	//non ci sono più processi e posso terminare
 				HALT();
-			else if( (processCount > 0) && (softBlockCount == 0 ))	//deadlock
+			else if( (processCount > 0) && (softBlockCount == 0 )){	//deadlock
 				PANIC();
-			else if(processCount > 0 && softBlockCount > 0)
+			}
+			else if(processCount > 0 && softBlockCount > 0){
 				WAIT();
-			else
-				PANIC();
+			}
+			else{
+				PANIC();}
 		}
 		else
 			currentProcess = removeProcQ(&readyQueue);
@@ -124,10 +60,7 @@ void scheduler(){
 
 	}
 	userTimeStart = getTODLO();
-	
-	//tprint("ora carico il processo\n");
 	LDST( &currentProcess->p_s );	//carico nel processore lo stato del processo scelto come prossimo
-	tprint("errore");
 }
 
 

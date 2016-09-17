@@ -42,7 +42,6 @@ int device_numb(memaddr *pending){
 
 
 void intHandler(){
-	
 	// state_t *retState;
 	int cause;
 	
@@ -55,8 +54,6 @@ void intHandler(){
 	cause = getCAUSE();		//salvo la causa dell'interrupt
 	
 	if(currentProcess != NULL){
-		//printHex(userTimeStart);
-	//	printHex(CPUTimeStart);
 		//arrivati qua c'è già un po di usertime...
 		
 		currentProcess->p_userTime += interStart - userTimeStart;
@@ -71,35 +68,29 @@ void intHandler(){
 	
 	//gestisci in base alla causa
 	if (CAUSE_IP_GET(cause, IL_TIMER)){	//Pseudoclock o time-slice
-		//tprint("fine timer\n");
 		intTimer();
 	}
 	else if (CAUSE_IP_GET(cause, IL_DISK)){
-		tprint("disk\n");
 		intDev(IL_DISK);
 	}
 	else if (CAUSE_IP_GET(cause, IL_TAPE)){
 		intDev(IL_TAPE);
-		tprint("tape\n");
 	}
 	else if (CAUSE_IP_GET(cause, IL_ETHERNET)){
 		intDev(IL_ETHERNET);
-		tprint("eth\n");
 	}
 	else if (CAUSE_IP_GET(cause, IL_PRINTER)){
 		intDev(IL_PRINTER);
-		tprint("print\n");
 	}
 	else if (CAUSE_IP_GET(cause, IL_TERMINAL)){
 		intTerm();
-		tprint("terminal\n");
 	}
 	scheduler();
 }
 
 
 void intDev(int int_no){ //gestore dell'interruptdi device, ho come argomento la linea di interrupt su cui arriva la cosa
-	tprint("intDev\n");
+
 	int devnumb;
 	memaddr  *pending;
 	int *sem; //semaforo su cui siamo bloccati
@@ -138,89 +129,43 @@ void intTerm() {
 	if ((termReg->transm_status & DEV_TERM_STATUS)== DEV_TTRS_S_CHARTRSM){//le cose in maiuscolo sono in uARMconst
 		
 		sem=&devices[IL_TERMINAL-DEV_IL_START][devnumb];//se è trasmissione allora il semaforo è quello di trasmissione
-		//printHex(IL_TERMINAL);
-		//printHex(devnumb);
+
 		termReg->transm_command = DEV_C_ACK;
 		
 		if (*sem < 1){
-			//tprint("mi devo bloccare\n");
 			unblck_proc = headBlocked(sem);
 			semaphoreOperation(sem,1);
 			if (unblck_proc!=NULL){
 				unblck_proc->p_s.a1=termReg->transm_status;
 			}
 		}
-	LDST(&currentProcess->p_s);	//Problem here
-
-	}
-	
-}
-
-/*
- void intTerm(){
-	int devnumb;
-	memaddr  *pending;
-	int *sem; //semaforo su cui siamo bloccati
-	pcb_t *unblck_proc; //processo appena sbloccato
-	termreg_t *termReg; //registro del device
-	
-	pending= (memaddr *)CDEV_BITMAP_ADDR(IL_TERMINAL);//indirizzo della bitmap dove ci dice su quali device pendono gli interrupt
-	devnumb= firstDevice(*pending); //prendiamo solo uno dei device su cui pendiamo
-	//devnumb= device_numb(pending); //prendiamo solo uno dei device su cui pendiamo
-	termReg=(termreg_t *)DEV_REG_ADDR(IL_TERMINAL, devnumb);
-	
-	
-	
-	//Scrivere ha la priorità sul leggere, quidni prima leggiamo :
-	//????? magari scriviamo prima?
-	if ((termReg->transm_status & DEV_TERM_STATUS)== DEV_TTRS_S_CHARTRSM){//le cose in maiuscolo sono in uARMconst
- 
- //sem=&devices[IL_TERMINAL-DEV_IL_START][devnumb];//se è trasmissione allora il semaforo è quello di trasmissione
- termReg->transm_command=DEV_C_ACK;//riconosco l'interrupt
- tprint("Ora vedo se mi devo bloccare\n");
- if (*sem < 1){
- tprint("mi devo bloccare\n");
- unblck_proc = headBlocked(sem);
- semaphoreOperation(sem,1);
- if (unblck_proc!=NULL){
- unblck_proc->p_s.a1=termReg->transm_status;
- }
- 
- }
- tprint("hi\n");
- LDST(&currentProcess->p_s);
- PANIC();
- 
 	}
 	else if ((termReg->recv_status & DEV_TERM_STATUS) == DEV_TRCV_S_CHARRECV){
- sem=&devices[IL_TERMINAL-DEV_IL_START+1][devnumb];//se è di ricevere allora il semaforo è l'ultimo
- termReg->recv_command=DEV_C_ACK;
- 
- if (*sem < 1){
- unblck_proc = headBlocked(sem);
- semaphoreOperation(sem,1); //device starting interrupt line DEVINTBASE = 3 --> const.h
- if (unblck_proc!=NULL){
- unblck_proc->p_s.a1=termReg->recv_status;
- }
- }
- LDST(&currentProcess->p_s);
- 
+		sem=&devices[IL_TERMINAL-DEV_IL_START+1][devnumb];//se è di ricevere allora il semaforo è l'ultimo
+		termReg->recv_command=DEV_C_ACK;
+		
+		if (*sem < 1){
+			unblck_proc = headBlocked(sem);
+			semaphoreOperation(sem,1); //device starting interrupt line DEVINTBASE = 3 --> const.h
+			if (unblck_proc!=NULL){
+				unblck_proc->p_s.a1=termReg->recv_status;
+			}
+		}
 	}
- }
- */
+	
+	LDST(&currentProcess->p_s);	//Problem here
+	
+}
 void intTimer(){
-	//tprint("intTimer\n");
 	if (current_timer=TIME_SLICE){
 		if (currentProcess!=NULL){
 			insertProcQ(&readyQueue, currentProcess);
 			currentProcess->p_CPUTime += getTODLO() - interStart; // che senso ha???
 			currentProcess=NULL;
-		//	tprint("fine time slice\n");
 		}
 	}else if (current_timer=PSEUDO_CLOCK){
 		while (&pseudoClock < 0){
 			semaphoreOperation (&pseudoClock, 1);
 		}
-		tprint("fine pseudo clock\n");
 	}
 }

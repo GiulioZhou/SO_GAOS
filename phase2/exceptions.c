@@ -89,27 +89,24 @@ void sysBpHandler(){
 			//sono in kernel mode quindi da qui faccio tutte le cose che devo fare
 			//essendo sicura di essere in kernel mode posso dire che è finito il tempo utente del processo. Dovrei farlo appena entrata nell'handler? Non cred perché potrei essere capitata qui anche in user mode, solo qui ho la sicurezza di essere in kernel mode
 		//NON VA BENE...
-		//	currentProcess->p_userTime += getTODLO() - userTimeStart;
+			currentProcess->p_userTime += getTODLO() - userTimeStart;
 			
-		//	tprint("che sys call e'?\n");
 			
 			
 			/* Gestisce ogni singola SYSCALL */
 			switch(sysc)
 			{
 				case CREATEPROCESS:
-					//tprint("create process\n");
 					currentProcess->p_s.a1 = createProcess((state_t *) argv1); // se questo cast non funziona provare a fare argv1 di tipo U32
 					break;
 					
 				case TERMINATEPROCESS:
-					tprint("terminate process\n");
 					terminateProcess((pid_t) argv1);
 					
 					break;
 					
 				case SEMOP:
-					tprint("\n");	//PROBLEMA: se tolgo questa tprint non funziona più niente >.>
+				//PROBLEMA: se tolgo questa tprint non funziona più niente >.>
 					semaphoreOperation((int *) argv1, (int) argv2);
 					break;
 					
@@ -139,7 +136,6 @@ void sysBpHandler(){
 					break;
 					
 				case IODEVOP:
-					//tprint("iodevop\n");
 					currentProcess->p_s.a1 = ioDevOp((unsigned int) argv1, (int) argv2, (unsigned int) argv3);
 					break;
 					
@@ -161,7 +157,6 @@ void sysBpHandler(){
 			
 		}
 		else if ((currentProcess->p_s.cpsr & STATUS_USER_MODE) == STATUS_USER_MODE) {//qui nel caso sono in user mode e provo a fare una syscall faccio come mi dicono le specifiche, copiando le old aree giuste e alzando una trap chiamando l'handler delle trap
-			tprint("User mode D:\n");
 			if (sysc >= 1 && sysc <= SYSCALL_MAX){
 				state_t *pgmTrap_old = (state_t *) PGMTRAP_OLDAREA;
 				copyState(pgmTrap_old,sysBp_old);
@@ -177,14 +172,12 @@ void sysBpHandler(){
 		
 		
 	}else { //non è ne syscall ne breakpoint
-		tprint("ne syscall ne breakpoint");
 		PANIC();
 	}
 }
 
 
 void tlbHandler(){
-	tprint("sono nel tlb handler\n");
 	currentProcess->p_userTime += getTODLO() - userTimeStart;
 	state_t *tlb_old = (state_t *) TLB_OLDAREA ;
 	
@@ -220,7 +213,6 @@ void tlbHandler(){
 
 
 void bpHandler(){
-	tprint("sono del bphandler\n");
 	//Visto che anche qui non sono sicura in che modalità sono, supponiamo di essere in kernel mode, stoppo il tempo utente
 	currentProcess->p_userTime += getTODLO() - userTimeStart;
 	state_t *sysBp_old = (state_t *) SYSBK_OLDAREA;

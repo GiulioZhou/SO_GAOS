@@ -155,9 +155,10 @@ void print(char *msg) {
 		
 		/* Wait for I/O completion (SYS8) */
 		status = SYSCALL(IODEVOP, command, INT_TERMINAL, 0);
-		//printHex(status);
 
 		if ((status & TERMSTATMASK) != TRANSM){
+			printHex(status);
+
 			tprint("panic 1\n");
 			PANIC();
 		}
@@ -172,31 +173,18 @@ void print(char *msg) {
 	SYSCALL(SEMOP, (int)&term_mut, 1, 0);				/* release term_mut */
 }
 
-void test(){
+void testfun(){
+	SYSCALL(SEMOP, (int)&testsem, 1, 0);					/* V(testsem)   */
+	if (testsem != 1) { print("error: p1 v(testsem) with no effects\n"); PANIC(); }
+	print("p1 v(testsem)\n");
 
-	/* set up p2's state */
-	STST(&p2state);			/* create a state area using p1's state    */
-	
-	/* stack of p2 should sit above p1's */
-	p2state.sp = p2state.sp - QPAGE;
-	
-	/* p2 starts executing function p2 */
-	p2state.pc = (memaddr)p2;
-	
-	/* p2 has interrupts on and unmasked */
-	p2state.cpsr = STATUS_ALL_INT_ENABLE(p2state.cpsr);
-	
-	SYSCALL(CREATEPROCESS, (int)&p2state, 0, 0);				/* start p2     */
-	
-	print("p2 was started\n");
-	
 	HALT();
 }
 
 /*                                                                   */
 /*                 p1 -- the root process                            */
 /*                                                                   */
-void testfun() {
+void test() {
 
 	cpu_t		time1, time2;
 	pid_t	fpid;

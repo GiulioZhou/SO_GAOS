@@ -139,7 +139,8 @@ void populate(memaddr area, memaddr handler){ //memaddr è un tipo di dato unsig
 	
 	newArea->pc = handler;
 	newArea->sp = RAM_TOP;
-	newArea->cpsr =  STATUS_ALL_INT_DISABLE(newArea->cpsr) | STATUS_SYS_MODE; //E' GIUSTO
+	newArea->cpsr = STATUS_SYS_MODE; //E' GIUSTO
+	newArea->cpsr =  STATUS_ALL_INT_DISABLE(newArea->cpsr);
 }
 
 //copia lo stato da src a dest
@@ -166,6 +167,11 @@ void copyState(state_t *dest, state_t *src){
 	dest->CP15_Cause = src->CP15_Cause;
 	dest->TOD_Hi = src->TOD_Hi;
 	dest->TOD_Low = src->TOD_Low;
+}
+
+
+void a(){
+	int aaa=0;
 }
 
 int main(){
@@ -199,7 +205,10 @@ int main(){
 	
 	newPid(first); //newPid
 	
-	first->p_s.cpsr = STATUS_ENABLE_INT(first->p_s.cpsr) | STATUS_ENABLE_TIMER(first->p_s.cpsr) | STATUS_SYS_MODE;
+	
+	first->p_s.cpsr =STATUS_SYS_MODE;
+	first->p_s.cpsr =STATUS_ENABLE_TIMER(first->p_s.cpsr);
+	first->p_s.cpsr = STATUS_ENABLE_INT(first->p_s.cpsr);
 	first->p_s.sp = RAM_TOP - FRAME_SIZE;
 	first->p_s.pc = (memaddr)testfun;	//Ricorda di modificare qui e sopra
 	
@@ -208,6 +217,7 @@ int main(){
 	
 	
 //	initScheduler();
+	
 	scheduler();
 	return 0;
 }

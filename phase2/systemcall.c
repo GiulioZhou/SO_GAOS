@@ -16,15 +16,13 @@ pid_t createProcess(state_t *statep){
 	if((newp = allocPcb()) == NULL)
 		return -1;
 	else {
-		tprint("pcb allocato\n");
 		copyState(&newp->p_s, statep); //Inizializzazione dello state
 		processCount++;
 		pid=newPid(newp);	//pidCounter progressivo
 		
 		insertChild(currentProcess, newp);
 		insertProcQ(&readyQueue, newp);
-		//tprint("ok?\n");
-		//printHex(pid);
+		
 		return pid;	//il valore di ritorno verrà salvato nel registro giusto dall'handler
 	}
 }
@@ -36,7 +34,6 @@ void terminateProcess(pid_t pid){
 	pcb_t *pChild;
 	pcb_t *pSib;
 	int isSuicide;
-	//tprint("1\n");
 	pToKill = NULL;
 	isSuicide = FALSE;
 	
@@ -49,9 +46,7 @@ void terminateProcess(pid_t pid){
 	else{
 		isSuicide = TRUE;
 	}
-	//tprint("2\n");
-//	printHex(isSuicide);
-//	printHex(pid);
+	
 	
 	/* if(currentProcess->p_pid == pid || pid == 0){ //preferisco in quest'altro modo ma fa un controllo in più >.>
 		if(pid == 0){
@@ -62,19 +57,15 @@ void terminateProcess(pid_t pid){
 	
 	pToKill = active_pcb[pid-1]; //Pcb da eliminare
 	if(pToKill == NULL){
-		tprint("3\n");
 		
 		PANIC();} //qui ritornava -1 ma visto che io non faccio ritornare mando in PANIC in caso di errore
 	
 	if(onSem(pToKill)){
-		tprint("4\n");
 		
 		if(!onDev(pToKill)){	//bloccato su un device
 			semaphoreOperation ((int*)pToKill->p_cursem, pToKill->p_resource); //libero risorse prenotate
 			pToKill = outBlocked(pToKill);	//tolgo dalla lista dei processi bloccati sul semaforo
-			tprint("5\n");
 			if (pToKill == NULL)
-				tprint("6\n");
 			
 			PANIC();
 			
@@ -91,7 +82,6 @@ void terminateProcess(pid_t pid){
 	
 	if(pToKill->p_parent!=NULL){
 		if((pToKill = outChild(pToKill)) == NULL){ // scolleghiamo il processo dal suo genitore
-			tprint("7\n");
 			
 			PANIC();
 		}
@@ -111,17 +101,13 @@ void terminateProcess(pid_t pid){
 
 //Semaphore Operation SYS3
 void semaphoreOperation (int *semaddr, int weight){
-	//	tprint("semOperation\n");
 	if (weight==0){
-		tprint("weight 0\n");
 		terminateProcess(0);	//oppure SYSCALL(TERMINATEPROCESS, SYSCALL(GETPID));
 		
 	}
 	else{
-		//	tprint("wight diverso da 0\n");
 		(*semaddr) += weight;  //!!!!!!!!! KERNEL PANIC non sempre dipende da chi chiama semop
 		if(weight > 0){ //abbiamo liberato risorse
-			//		tprint("libero risorse\n");
 			
 			pcb_t *p;
 			p=headBlocked(semaddr);
@@ -135,17 +121,16 @@ void semaphoreOperation (int *semaddr, int weight){
 						p->p_resource=0;
 						insertProcQ(&readyQueue, p);
 					}
-					else {tprint("yea");PANIC();} //si attiva qaudno la removeBlocked fallisce
+					else {PANIC();} //si attiva qaudno la removeBlocked fallisce
 				}
 			}
 		}
 		else{ // abbiamo allocato risorse
-			//	tprint("Ci servono risorse\n");
 			if  (*semaddr < 0)  {
 				if(insertBlocked(semaddr, currentProcess)){
-					tprint("panic non insertblock");
 					PANIC();
 				}
+				
 				currentProcess->p_resource=weight;
 				currentProcess->p_CPUTime += getTODLO() - CPUTimeStart;
 				currentProcess = NULL;
@@ -156,11 +141,12 @@ void semaphoreOperation (int *semaddr, int weight){
 
 //Specify Sys/BP Handler SYS4
 void specifySysBpHandler(memaddr pc, memaddr sp, unsigned int flags){
+	
 	if (isNull(&currentProcess->p_excpvec[EXCP_SYS_NEW]) ){
 		state_t *sysBp_new = (state_t *) SYSBK_NEWAREA;
 		sysBp_new->pc=pc;
 		sysBp_new->sp=sp;
-		sysBp_new->cpsr=flags; //non penso vada bene
+		sysBp_new->cpsr= sysBp_new->cpsr | flags; //non penso vada bene
 		
 		//questo dovrebbe copiare l'asid del currentProcess in quello della newArea. le macro che ho usato sono sempre in uARMconst
 		sysBp_new->CP15_EntryHi=ENTRYHI_ASID_SET( sysBp_new->CP15_EntryHi, ENTRYHI_ASID_GET(currentProcess->p_s.CP15_EntryHi));
@@ -175,12 +161,12 @@ void specifySysBpHandler(memaddr pc, memaddr sp, unsigned int flags){
 
 //Specify TLB Handler SYS5
 void specifyTLBHandler(memaddr pc, memaddr sp, unsigned int flags){
-	
+
 	if (isNull(&currentProcess->p_excpvec[EXCP_SYS_NEW])){
 		state_t *TLB_new = (state_t *) TLB_NEWAREA;
 		TLB_new->pc=pc;
 		TLB_new->sp=sp;
-		TLB_new->cpsr=flags;
+		TLB_new->cpsr=TLB_new->cpsr | flags;
 		TLB_new->CP15_EntryHi=ENTRYHI_ASID_SET( TLB_new->CP15_EntryHi, ENTRYHI_ASID_GET(currentProcess->p_s.CP15_EntryHi));
 		
 		copyState(&currentProcess->p_excpvec[EXCP_TLB_NEW], TLB_new);
@@ -192,12 +178,12 @@ void specifyTLBHandler(memaddr pc, memaddr sp, unsigned int flags){
 
 //Specify Program Trap Handler (SYS6)
 void specifyPgmTrapHandler(memaddr pc, memaddr sp, unsigned int flags){
-	
+
 	if (isNull(&currentProcess->p_excpvec[EXCP_SYS_NEW])){
 		state_t *pgmTrap_new = (state_t *) PGMTRAP_NEWAREA;
 		pgmTrap_new->pc=pc;
 		pgmTrap_new->sp=sp;
-		pgmTrap_new->cpsr=flags;
+		pgmTrap_new->cpsr=pgmTrap_new->cpsr | flags;
 		pgmTrap_new->CP15_EntryHi=ENTRYHI_ASID_SET( pgmTrap_new->CP15_EntryHi, ENTRYHI_ASID_GET(currentProcess->p_s.CP15_EntryHi));
 		
 		copyState(&currentProcess->p_excpvec[EXCP_PGMT_NEW], pgmTrap_new);
@@ -231,8 +217,7 @@ void getCpuTime(cputime_t *global, cputime_t *user){
 	cputime_t current_usr= currentProcess->p_userTime;
 	
 	current_cpu += getTODLO() - CPUTimeStart;	//aggiungo il tempo dal processo fino a questo punto (che dovrebbe essere in kernel mode)
-	//printHex(current_cpu);
-	//printHex(current_usr);
+	
 	*global=current_cpu;
 	*user=current_usr;
 }
@@ -252,23 +237,19 @@ unsigned int ioDevOp(unsigned int command, int intlNo, unsigned int dnum){
 	dtpreg_t *devReg; //registri dei device normali
 	termreg_t *termReg; //registro del terminale
 	int is_read;
-	//tprint("i/o\n");
-	//printHex(dnum);
+	
 	if((intlNo >= 0)&&(intlNo < INT_TERMINAL)){//caso accesso a device tranne scrittura su terminale
 		dev = intlNo - DEV_IL_START; //in arch.h: DEV_IL_START (N_INTERRUPT_LINES - N_EXT_IL) --> 8-5 = 3
-		tprint("device\n");
 		is_read = FALSE;
 	}
 	else{
 		if(dnum & 0x10000000){// caso scrittura su terminale
 			dev = intlNo - DEV_IL_START+1;
 			dnum = dnum & 0x00000111;
-			tprint("terminale read\n");
 			
 			is_read = TRUE;
 		}
 		else{
-			//	tprint("write\n");
 			dev = intlNo - DEV_IL_START;
 			is_read = FALSE;
 			
@@ -280,25 +261,15 @@ unsigned int ioDevOp(unsigned int command, int intlNo, unsigned int dnum){
 		termReg=(termreg_t *)DEV_REG_ADDR(intlNo, dnum);
 		if (is_read){
 			termReg->recv_command=command;
+			semaphoreOperation(&devices[dev][dnum], -1);
+
 			return termReg->recv_status;
 		}
 		else{
-			//	tprint("transmit\n");
-			//printHex(command);
-			//printHex(dev);
-			//	printHex(dnum);
 			termReg->transm_command=command;
 			
 			//succedono cose strane....
 			semaphoreOperation(&devices[dev][dnum], -1);
-			
-			//termReg->transm_status=command;
-			
-			
-			
-			//printHex(termReg->transm_command);
-			tprint("");			//si è modificto da solo
-			
 			
 			return termReg->transm_status;
 		}
@@ -307,13 +278,10 @@ unsigned int ioDevOp(unsigned int command, int intlNo, unsigned int dnum){
 	else{//azioni su altri device
 		devReg=(dtpreg_t *)DEV_REG_ADDR(intlNo, dnum);
 		devReg->command=command;
+		semaphoreOperation(&devices[dev][dnum], -1);
+
 		return devReg->status;
 	}
-	
-	//basta quello che ho fatto sopra per "performare" il comando?
-	
-	//la cosa seguente in teoria dovrebbe bloccare il currentProcess nel semaforo del device giusto ma boh
-	semaphoreOperation(&devices[dev][dnum], -1);
 	
 }
 
