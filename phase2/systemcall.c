@@ -102,6 +102,7 @@ void terminateProcess(pid_t pid){
 //Semaphore Operation SYS3
 void semaphoreOperation (int *semaddr, int weight){
 	if (weight==0){
+	
 		terminateProcess(0);	//oppure SYSCALL(TERMINATEPROCESS, SYSCALL(GETPID));
 		
 	}
@@ -111,9 +112,54 @@ void semaphoreOperation (int *semaddr, int weight){
 			
 			pcb_t *p;
 			p=headBlocked(semaddr);
+			while ((p = headBlocked(semaddr)) && p->p_resource <= weight) {
+				p = outBlocked(p);
+				// Update softBlockCounter if process is blocked on a device semaphore
+	
+				if (semaddr >= &devices[0][0] && semaddr <= &devices[DEV_USED_INTS][DEV_PER_INT-1]) {
+					softBlockCount--;	
+				}	
+				weight -= p->p_resource;
+				p->p_resource = 0;
+				insertProcQ(&readyQueue, p);
+			}
+			p->p_resource -= weight;
+		}
+		else{ // abbiamo allocato risorse
+			if  (*semaddr < 0)  {
+				if(insertBlocked(semaddr, currentProcess)){
+					PANIC();
+				}
+				
+				currentProcess->p_resource=weight;
+				currentProcess->p_CPUTime += getTODLO() - CPUTimeStart;
+				if (semaddr >= &devices[0][0] && semaddr <= &devices[DEV_USED_INTS][DEV_PER_INT-1]) {
+					softBlockCount++;	
+				}
+				currentProcess = NULL;
+			}
+		}
+	}
+}
+/*
+//Semaphore Operation SYS3
+void semaphoreOperation (int *semaddr, int weight){
+	if (weight==0){
+	
+		terminateProcess(0);	//oppure SYSCALL(TERMINATEPROCESS, SYSCALL(GETPID));
+		
+	}
+	else{
+		(*semaddr) += weight;  //!!!!!!!!! KERNEL PANIC non sempre dipende da chi chiama semop
+		if(weight > 0){ //abbiamo liberato risorse
+			printHex(weight);
+			pcb_t *p;
+			p=headBlocked(semaddr);
 			if(p!=NULL){
+				
 				if (p->p_resource > weight){
 					p->p_resource = p->p_resource - weight;
+					
 				}
 				else{
 					p = removeBlocked(semaddr);
@@ -137,7 +183,7 @@ void semaphoreOperation (int *semaddr, int weight){
 			}
 		}
 	}
-}
+}*/
 
 //Specify Sys/BP Handler SYS4
 void specifySysBpHandler(memaddr pc, memaddr sp, unsigned int flags){
