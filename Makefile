@@ -1,39 +1,56 @@
-INC_DIR= /usr/include/uarm
-DEFS = ./h/const.h ./h/types.h ./h/asl.h ./h/pcb.h ./h/initial.h ./h/interrupts.h ./h/scheduler.h ./h/exceptions.h Makefile
-CFLAGS= -c -I/usr/include/uarm -I./h
-all: p2test.elf.core.uarm p2test.elf.stab.uarm
+# Cartelle contenenti file da compilare e nome del file finale
+TARGET := kernel
+SRC_PATH := src
+SRC_EXT := c
+BUILD_PATH:= build
 
-p2test.elf.core.uarm p2test.elf.stab.uarm: p2test.elf
-	elf2uarm -k p2test.elf
+# Librerie da linkare
+LIBS :=
 
-p2test.elf: pcb.o asl.o exceptions.o scheduler.o interrupts.o p2test.o initial.o systemcall.o
-	arm-none-eabi-ld -T $(INC_DIR)/ldscripts/elf32ltsarm.h.uarmcore.x -o p2test.elf $(INC_DIR)/crtso.o $(INC_DIR)/libuarm.o pcb.o asl.o initial.o exceptions.o scheduler.o interrupts.o p2test.o systemcall.o
+# Flags per compilatore e linker
+CFLAGS := -c -mcpu=arm7tdmi -I /usr/include/uarm/
+LFLAGS := -T /usr/include/uarm/ldscripts/elf32ltsarm.h.uarmcore.x
+LDARGS := /usr/include/uarm/libuarm.o /usr/include/uarm/crtso.o
 
-initial.o: ./phase2/initial.c $(DEFS)
-	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase2/initial.c
+# Lista di file da compilare
+SOURCES = $(shell find $(SRC_PATH) -name '*.$(SRC_EXT)')
+OBJECTS = $(SOURCES:$(SRC_PATH)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 
-exceptions.o: ./phase2/exceptions.c $(DEFS)
-	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase2/exceptions.c
+PREFIX = arm-none-eabi
+CC = $(PREFIX)-gcc
+LD = $(PREFIX)-ld
 
-scheduler.o: ./phase2/scheduler.c $(DEFS)
-	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase2/scheduler.c
+debug: CFLAGS += -DDEBUG
+debug: all
 
-interrupts.o: ./phase2/interrupts.c $(DEFS)
-	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase2/interrupts.c
+# Regola all
+all: dirs
+all: $(TARGET).uarm
 
-systemcall.o: ./phase2/systemcall.c $(DEFS)
-	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase2/systemcall.c
+# Regola per la generazione dei file per uArm
+%.uarm: %.elf
+	@echo Generating .uarm file...
+	elf2uarm -k $<
 
-pcb.o: ./phase1/pcb.c $(DEFS)
-	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase1/pcb.c
+# Regola per la generazione dei file ELF
+$(TARGET).elf: $(OBJECTS)
+	@echo Creating .elf file $@...
+	$(LD) $(LFLAGS) -o $@ $(LDARGS) $^
 
-asl.o: ./phase1/asl.c $(DEFS)
-	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase1/asl.c
+# Regola per la generazione dei file object
+$(BUILD_PATH)/%.o: $(SRC_PATH)/%.$(SRC_EXT)
+	@echo Creating object file $@...
+	$(CC) $(LIBS) $(CFLAGS) -c $< -o $@
 
-p2test.o: ./phase2/p2test.c ./h/pcb.h ./h/const.h
-	arm-none-eabi-gcc -mcpu=arm7tdmi $(CFLAGS) ./phase2/p2test.c
 
-.PHONY: clean
-
+# Regola clean
 clean:
-	rm *.o *.elf *.uarm
+	@echo "Deleting directories"
+	@$(RM) -r $(BUILD_PATH)
+
+
+# Create the directories used in the build
+.PHONY: dirs
+dirs:
+	@echo "Creating directories"
+	@mkdir -p $(dir $(OBJECTS))
