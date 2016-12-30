@@ -10,9 +10,17 @@
 // Max active processes
 #define MAXPROC 20
 
+// Max user processes
+#define UPROCMAX 8
+
 // Max pages for each process
 #define MAX_PAGES 32
 #define MAX_KPAGES 50 //messo da noi perché le specifiche dicono che devono essere circa 50
+#define KSEG0_PTB_SIZE 32
+#define USEG3_PTB_SIZE 64
+
+// Swap pool size
+#define SWAP_POOL_SIZE UPROCMAX * 2
 
 // Scheduling constants
 #define SCHED_TIME_SLICE 5000     // in microseconds, aka 5 milliseconds

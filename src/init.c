@@ -2,30 +2,6 @@
 #include "types.h"
 
 
-#define UPROCMAX 8 //non siamo sicuri del'8 però
-
-
-typedef struct {
-    uint entry_hi;
-    uint entry_lo;
-} ptentry_t;
-
-typedef struct {
-    uint header;
-    ptentry_t entries[MAX_KPAGES];
-} kptbl_t;
-
-
-typedef struct {
-    uint header;
-    ptentry_t entries[MAX_PAGES];
-} uptbl_t;
-
-typedef struct {
-    kptbl_t *kseg0;
-    uptbl_t *useg2;
-    uptbl_t *useg3;
-} segtbl_entry_t;
 
 
 /*---strutture per paginazione----*/
@@ -36,11 +12,13 @@ kptbl_t kseg0_ptbl;
 uptbl_t useg2_ptbl[MAXPROC];
 uptbl_t useg3_ptbl;
 
+swapPool_t swapPool[SWAP_POOL_SIZE]; //UPROCMAX * 2
 
 
 /*---- semafori ----*/
-
+//delay facility, the virtual P & V facility, the swap-pool/Pager service and one for each device’s device registers
 int uproc_semaphore[UPROCMAX];
+int swap_semaphore;
 
 /*---- state_t per processi vari --- */
 state_t delay_state;
@@ -49,51 +27,44 @@ state_t delay_state;
 
 
 void initPageTable(uint *header, ptentry_t entries[], int num, int segno, int flags_lo) {
-    *header = (PAGE_TBL_MAGICNO << 24) | num;
-    for (int i = 0; i < num; i++){
-		/* set up OS pages */
+	int i;
+	*header = (PAGE_TBL_MAGICNO << 24) | num;
+    for (i = 0; i < num; i++){
+		// set up OS pages
         // REVIEW: forse va messo questo (0x20000 + i) al posto di solo i, però boh
-		entries[i].entry_hi = (i << 12) | (segno << 30);
-		entries[i].entry_lo =  i << 12 | flags_lo;
+		entries[i].entry_hi = ((0x20000 + i) << 12) | (segno << 30);
+		entries[i].entry_lo =  ((0x20000 + i) << 12) | flags_lo;
 	}
 }
 
-void initProcess() {
-    uint asid = ...?
-    pcb_t *p;
-    seg_table[asid].kseg0 = &kseg0_ptable;
-    seg_table[asid].useg2 = &p->p_ptable;
-    seg_table[asid].useg3 = &useg3_ptable;
-}
-
-void delay_deamon(){//fatta manca solo da inserire la V
-    while(TRUE){
-        int time;
-        delayd_t head;
-        sys9_WAITCLOCK(0, 0, 0);
-        time = getTODLO();
-        while(head=del_head(adl)){
-            if(head->d_wake_time <= time) {
-                //bisogna fare la V nel private sem
-                //controlla acid, cercalo tra i bloccati e sbloccalo
-                del_remove(adl);
-            }
-            else break;
-        }
-    }
-}
+//init process e delay demon spostati sotto perchè mi danno fastidio alla vista u.u
 
 int test() {
-    initPageTable(&kseg0_ptbl.header, kseg0_ptbl.entries, MAX_KPAGES, KSEGO,
+	int j;
+	
+	//Initialize the single Kseg0 PTE
+    initPageTable(&kseg0_ptbl.header, kseg0_ptbl.entries, MAX_KPAGES, KSEG0_PTB_SIZE,
             ENTRYLO_DIRTY | ENTRYLO_VALID | ENTRYLO_GLOBAL);
-    initPageTable(&useg3_ptbl.header, useg3_ptbl.entries, MAX_PAGES, USEG3,
+	
+	//Initialize the single Useg3 PTE
+    initPageTable(&useg3_ptbl.header, useg3_ptbl.entries, MAX_PAGES, USEG3_PTB_SIZE,
             ENTRYLO_GLOBAL);
 
-    for (int j=0, j < UPROCMAX, j++) {
+	//Initilize all VM-I/O support level semaphores
+	for (i=0; j < UPROCMAX; j++) {
       uproc_semaphore[j]=0;
     }
+	
+	//Initialize the swap-pool data structure(s)
+	for (i = 0; i < SWAP_POOL_SIZE; i++){
+		swapPool[i].asid = -1;
+		swapPool[i].pte = NULL;
+		swapPool[i].segNo = 0;
+		swapPool[i].pageNo = 0;
+	}
 
-    initADL();
+	
+/*    initADL();
 
     STST(&delay_state);
 
@@ -105,6 +76,35 @@ int test() {
 
     // System Control Register
     delay_state->CP15 = ??;
-
-
+*/
+	HALT();
 }
+
+
+/*
+ 
+ void initProcess() {
+	uint asid = ???;
+ pcb_t *p;
+ seg_table[asid].kseg0 = &kseg0_ptbl;
+ //seg_table[asid].useg2 = &p->p_ptbl;
+ seg_table[asid].useg3 = &useg3_ptbl;
+ }
+ 
+ void delay_deamon(){//fatta manca solo da inserire la V
+ while(TRUE){
+ int time;
+ delayd_t head;
+ sys9_WAITCLOCK(0, 0, 0);
+ time = getTODLO();
+ while(head=del_head(adl)){
+ if(head->d_wake_time <= time) {
+ //bisogna fare la V nel private sem
+ //controlla acid, cercalo tra i bloccati e sbloccalo
+ del_remove(adl);
+ }
+ else break;
+ }
+ }
+ }*/
+

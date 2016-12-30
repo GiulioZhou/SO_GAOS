@@ -1,10 +1,10 @@
-#include "const.h"
+/*#include "const.h"
 #include "types.h"
 
 typedef struct clist d_list;
 
 typedef struct {
-  int *d_semAdd; /* pointer to the semaphore */
+  int *d_semAdd; // pointer to the semaphore
   d_list *list_head;
   int d_wake_time;
   int asid;
@@ -67,4 +67,4 @@ void del_remove(d_list *list) {
   	  clist_push(del, &delayd_free, d_link);
     }
 
-}
+}*/

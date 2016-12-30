@@ -1,6 +1,61 @@
 #include "util.h"
 
 
+
+//Roba di Davoli per le print (presa da p2test)
+typedef unsigned int devregtr;
+
+/* hardware constants */
+#define PRINTCHR 2
+#define BYTELEN 8
+#define RECVD 5
+#define TRANSM 5
+
+#define CLOCKINTERVAL 100000UL /* interval to V clock semaphore */
+
+#define TERMSTATMASK 0xFF
+#define TERMCHARMASK 0xFF00
+#define CAUSEMASK 0xFFFFFF
+#define VMOFF 0xF8FFFFFF
+#define SEMAPHORE int
+SEMAPHORE term_mut = 1; /* for mutual exclusion on terminal */
+
+
+/* a procedure to print on terminal 0 */
+void print(char *msg) {
+	
+	char *s = msg;
+	devregtr command;
+	devregtr status;
+	
+	SYSCALL(SEMOP, (int)&term_mut, -1, 0); /* get term_mut lock */
+	
+	while (*s != '\0') {
+		/* Put "transmit char" command+char in term0 register (3rd word). This
+		 actually starts the operation on the device! */
+		command = PRINTCHR | (((devregtr)*s) << BYTELEN);
+		
+		/* Wait for I/O completion (SYS8) */
+		status = SYSCALL(IODEVOP, command, INT_TERMINAL, 0);
+		
+		if ((status & TERMSTATMASK) != TRANSM) {
+			PANIC();
+		}
+		
+		if (((status & TERMCHARMASK) >> BYTELEN) != *s) {
+			PANIC();
+		}
+		
+		s++;
+	}
+	
+	SYSCALL(SEMOP, (int)&term_mut, 1, 0); /* release term_mut */
+}
+
+
+
+
+
 /*
  * Prints a number in its hexadecimal form, ex. 0x0012ACF1
  */

@@ -14,6 +14,7 @@ typedef unsigned int size_t;
 typedef unsigned int pid_t;
 typedef unsigned int cputime_t;
 typedef unsigned int memaddr;
+
 typedef struct {
 	int pseudo_clock;
 	int dev_disk[8];
@@ -60,7 +61,35 @@ typedef struct pcb_t {
 	uint invoked_sys5; /* flag for checking if process called a SYS5 */
 	uint invoked_sys6; /* flag for checking if process called a SYS6 */
 
-	ptable_t p_ptable;
 } pcb_t;
+
+typedef struct {
+	uint entry_hi;
+	uint entry_lo;
+} ptentry_t;
+
+typedef struct {
+	uint header;
+	ptentry_t entries[MAX_KPAGES]; //64
+} kptbl_t;
+
+typedef struct {
+	uint header;
+	ptentry_t entries[MAX_PAGES]; //32
+} uptbl_t;
+
+typedef struct {
+	kptbl_t *kseg0;
+	uptbl_t *useg2;
+	uptbl_t *useg3;
+} segtbl_entry_t;
+
+//record whether the frame is in use or not, and if so, by which U-proc (i.e. ASID) and which virtual page is occupying the frame (SEGNO, and VPN)
+typedef struct {
+	int	asid;
+	int segNo;
+	int	pageNo;
+	ptentry_t *pte;
+} swapPool_t;
 
 #endif
