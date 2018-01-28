@@ -6,6 +6,7 @@
 #include "syscalls.h"
 
 void handlePseudoClock();
+void handleDevice(int device, int dev_sem[]);
 void handleTimer();
 void handleTerminal();
 

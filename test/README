@@ -1,0 +1,139 @@
+                    
+								  HOW USERMODE PROGRAMS WORK UNDER JAEOS 
+								 ----------------------------------------
+
+This directory contains all the needed tools to write usermode programs to run
+under JaeOS.
+
+Since the enviroment is simplified, you can't expect to have a complete 
+libc-like set of libraries and header files; instead, some simple libraries
+and header files are available.
+
+The ulib/ direcotry contains the libraries available to usermode (sources and
+object files: if you don't see the object files, build them with "make ulib"). 
+These are:
+
+crti.o:     the "C run time". This is the piece of code that contains the 
+            program's entry point, and, after some initializations, calls 
+						main(). You definitely need this.
+
+ulibumps.o: contains the functions used to invoke operating system services.
+            Essentially, this is the SYSCALL function (packaged separately
+						because it needs to be written in assembly: it performs the
+						"syscall" assembly instruction, that causes a trap into the OS). 
+						You need this if you want to use OS services (that is, accessing 
+						devices or time-based services), so, for little-more-than-trivial
+						programs you surely need this.
+
+ulib.o:     This is the "(very) poor man's libc": contains wrapper functions 
+            for the various SYSCALL services, and some utility functions (like
+						string manipulation or number-to-string conversion). Like in real
+						operating systems environments, you don't strictly need this, but
+						not using it requires you to write your-own utility functions and
+						using direct SYSCALL invocations to access OS services. In real
+						systems that don't use dynamic linking and shared libraries, a 
+						reason for not using the C library is sometimes the limited amount
+						of available resources, so there is the need to have a small 
+						executable. JaeOS still does not have dynamic linking nor shared
+						libraries, but lack of resources is not an issue (for now), so you
+						better use this library.
+
+That being said, the following are the header files you want to include in
+your programs:
+
+h/uconst.h:   some utility definitions, like SYSCALL codes, TRUE, FALSE, NULL,
+              devices' status. You need this.
+
+e/ulibumps.e: SYSCALL function prototype. You need this if you plan to invoke
+              SYSCALL() directly from your code.
+
+e/ulib.e:     prototypes for functions in ulib.o. You generally need this.
+
+You can #include these in your program as
+
+#include "e/ulib.e"
+
+or
+
+#include "ulib.e"
+
+If you use the second form, you must use the supplied Makefile to compile your
+program, or supply -Ie -Ih on the compiler's command line.
+
+
+                        AVAILABLE FUNCTIONS
+	    	               ---------------------
+
+*********** ulibumps.o:
+
+unsigned int SYSCALL(unsigned int number, unsigned int arg1, unsigned int arg2, unsigned int arg3);
+
+Requests a service to the OS. To use this, you need to know the SYSCALL codes
+and the meaning of the various arguments (that is syscall-specific).
+
+*********** ulib.o (look at the comments in the sources to have more detailed 
+descriptions):
+
+int print_term(char *s);
+
+Prints the string "s" on the terminal associated to the process. Returns
+DEV_S_READY on success.
+
+int print_prt(char *s);
+
+Prints the string "s" on the printer associated to the process. Returns
+DEV_S_READY on success.
+
+int read_term(char *s);
+
+Reads a string from the terminal associated to the process, write it in the 
+buffer "s" and returns the number of characters read. USE WITH CAUTION.
+
+int write_disk(void *buf, int disk_no, int sec_no);
+
+Writes the contents of the buffer "buf" (that must be 4096 bytes in size) to
+sector "sec_no" of disk "disk_no". Returns DEV_S_READY on success.
+
+int read_disk(void *buf, int disk_no, int sec_no);
+
+Reads sector "sec_no" of disk "disk_no" into buffer "buf" (that must be 4096 
+bytes in size). Returns DEV_S_READY on success.
+
+void V(int *sem);
+void P(int *sem);
+
+Perform a V or a P on the semaphore at address "sem" (must be in KUSEG3).
+
+void delay(int nsec);
+
+Suspends the requesting process for at least "nsec" seconds.
+
+unsigned int get_TOD(void);
+
+Obtains the Time Of Day, a progressive increasing number.
+
+int uexit(void);
+
+Terminates the program. Alternatively, programs may terminate by just returning
+from main().
+
+char *to_string(char *buf, int len, int base, signed char fill, int n);
+
+Writes into the buffer "buf" the string representation of the number "n" in
+base "base". Writes at most "len" characters. The pointer returned by this
+function can be used directly as an argument to print_term(), eg 
+print_term(to_string(buf, 4, 10, ' ', 331));
+There is more than this, so read the comments in the code.
+
+int to_num(char *buf);
+
+Returns the number corresponding to the "buf" string.
+
+int pow(int base, int exp); 
+
+Returns the value of base^exp.
+
+int str_len(char *s);
+
+Returns the length of the string "s".
+

@@ -26,25 +26,22 @@ typedef struct {
 } devices_sem_t;
 
 
-/* struct clist definition. It is at the same time the type of the tail
-     pointer of the circular list and the type of field used to link the elements */
 struct clist {
-    struct clist *next;
+	struct clist *next;
 };
 
 
-// The semaphore structure
+// Semaphore structure
 typedef struct semd_t {
 	int *s_semAdd; /* pointer to the semaphore */
 	struct clist s_link; /* ASL linked list */
 	struct clist s_procq; /* blocked process queue */
 } semd_t;
 
-// Process control block type
+// Process control block structure
 typedef struct pcb_t {
 	struct pcb_t *p_parent; /* pointer to parent */
-	struct semd_t *p_cursem; /* pointer to the semd_t on
-				    which process blocked */
+	struct semd_t *p_cursem; /* pointer to the semd_t on which the process is blocked */
 	pid_t p_pid;
 	state_t p_s; /* processor state */
 	state_t p_excpvec[EXCP_COUNT]; /*exception states vector*/
@@ -61,6 +58,8 @@ typedef struct pcb_t {
 	uint invoked_sys5; /* flag for checking if process called a SYS5 */
 	uint invoked_sys6; /* flag for checking if process called a SYS6 */
 
+	int p_asid;
+
 } pcb_t;
 
 typedef struct {
@@ -70,12 +69,12 @@ typedef struct {
 
 typedef struct {
 	uint header;
-	ptentry_t entries[MAX_KPAGES]; //64
+	ptentry_t entries[MAX_KPAGES]; //64 non funziona,
 } kptbl_t;
 
 typedef struct {
 	uint header;
-	ptentry_t entries[MAX_PAGES]; //32
+	ptentry_t entries[MAX_PAGES];
 } uptbl_t;
 
 typedef struct {
@@ -84,12 +83,28 @@ typedef struct {
 	uptbl_t *useg3;
 } segtbl_entry_t;
 
-//record whether the frame is in use or not, and if so, by which U-proc (i.e. ASID) and which virtual page is occupying the frame (SEGNO, and VPN)
+//record whether the frame is in use or not
 typedef struct {
-	int	asid;
-	int segNo;
-	int	pageNo;
+	byte asid;
+	byte seg_no;
+	int	vpn;
 	ptentry_t *pte;
-} swapPool_t;
+} swap_pool_t;
+
+//Disk sector
+typedef struct swap_list_t {
+	byte head;
+	byte sect;
+	struct clist next;
+} swap_list_t;
+
+//Delay structure
+typedef struct delayd_t {
+	int d_wake_time;
+	int asid;
+	int d_sem_index;
+	struct clist d_link;
+} delayd_t;
+
 
 #endif

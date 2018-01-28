@@ -1,70 +1,45 @@
-/*#include "const.h"
+#include "const.h"
 #include "types.h"
+#include "util.h"
+#include <libuarm.h>
 
-typedef struct clist d_list;
-
-typedef struct {
-  int *d_semAdd; // pointer to the semaphore
-  d_list *list_head;
-  int d_wake_time;
-  int asid;
-  d_list d_link;
-} delayd_t;
-
-
-
-struct d_list adl;
-struct d_list delayd_free;
+struct clist adl = CLIST_INIT;
+struct clist delayd_free = CLIST_INIT;
 
 void initADL() {
+	int i;
 	static struct delayd_t delayedTable[UPROCMAX];
-	adl = CLIST_INIT;
-	delayd_free = CLIST_INIT;
-    memset(delayedTable, 0, sizeof(struct delayd_t)*UPROCMAX);
-    int i;
+
+	memset(delayedTable, 0, sizeof(struct delayd_t)*UPROCMAX);
 	for (i = 0; i < UPROCMAX; i++) {
+		delayedTable[i].d_sem_index = i;
 		clist_enqueue(&delayedTable[i], &delayd_free, d_link);
 	}
 }
 
-
-// quando qualcuno chiama la syscall delay calcola waketime per passare da
-// secondi in millisecondi. Quindi qui ci arriva in ms
-
 int del_insert(int p_asid, int p_waketime) {
-  delayd_t *del;
+	delayd_t *del;
+	clist_pop(&delayd_free, del, d_link);
+	if (!del) return -1;
 
-  if (clist_empty(delayd_free)) {
-    return TRUE;
-  }
-    // Allocate the semaphore descriptor
-  clist_pop(&delayd_free, del, d_link);
-
-  del->list_head = adl;
-  del->d_wake_time = getTODLO() + p_waketime;
-  del->asid = p_asid;
-  del->d_link = CLIST_INIT;
-  clist_insert_asc(del, &adl, d_link, d_wake_time);
-  return FALSE;
+	del->d_wake_time = getTODLO() + p_waketime;
+	del->asid = p_asid;
+	del->d_link = CLIST_INIT;
+	clist_insert_asc(del, &adl, d_link, d_wake_time);
+	return del->d_sem_index;
 }
 
+int del_remove() {
+	delayd_t *del;
+	if((del = clist_head(del, adl, d_link)) && del->d_wake_time < getTODLO()) {
+		clist_pop(&adl, del, d_link);
 
-delayd_t *del_head(d_list *list) {
-    delayd_t *d_head;
-    if (clist_empty(*list))
-        d_head = NULL;
-    else
-        clist_head(d_head, *list, d_link);
-    return d_head;
+		del->d_wake_time = 0;
+		del->asid = 0;
+		del->d_link = CLIST_INIT;
+
+		clist_push(del, &delayd_free, d_link);
+		return del->d_sem_index;
+	}
+	return -1;
 }
-
-
-void del_remove(d_list *list) {
-    delayd_t *del;
-    if (!clist_empty(*list)) {
-      clist_pop(list, del, d_link);
-      memset(del, 0, sizeof(struct delayd_t));
-  	  clist_push(del, &delayd_free, d_link);
-    }
-
-}*/

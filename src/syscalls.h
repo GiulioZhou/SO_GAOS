@@ -8,11 +8,9 @@
 #include "asl.h"
 #include "pcb.h"
 #include "scheduler.h"
+#include "dma.h"
+#include "swap.h"
 
-extern pcb_t *current_process;
-extern int s_pseudo_clock;
-extern int sem_term_trs[];
-extern int sem_term_rcv[];
 
 // Syscalls list
 void sys1_CREATEPROCESS(int a2, int a3, int a4);
@@ -28,7 +26,18 @@ void sys8_GETCPUTIME(int a2, int a3, int a4);
 void sys9_WAITCLOCK(int a2, int a3, int a4);
 void sys10_IODEVOP(int a2, int a3, int a4);
 void sys11_GETPID(int a2, int a3, int a4);
-void sys12_READ_FROM_TERMINAL(int a2, int a3, int a4);
-void sys13_WRITE_FROM_TERMINAL(int a2, int a3, int a4);
+
+
+// Usercalls list
+int usr12_READTERMINAL(int a2);
+int usr13_WRITE_TO_TERMINAL(int a2, int a3);
+void usr14_VSEMVIRT (int *semaddr, int weight);
+void usr15_PSEMVIRT (int *semaddr, int weight);
+int usr16_DELAY(int a2);
+int usr17_DISKPUT(int a2, int a3, int a4);
+int usr18_DISKGET(int a2, int a3, int a4);
+int usr19_WRITEPRINTER(int virtAddr, int len);
+int usr20_GETTOD();
+int usr21_TERMINATE();
 
 #endif

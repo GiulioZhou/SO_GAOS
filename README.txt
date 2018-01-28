@@ -1,28 +1,46 @@
 ----------------------------------------------------
 I) Composizione del Gruppo
 ----------------------------------------------------
-* Olga Becci
+* Olga    Becci
 * Giacomo Rizzi
-* Giulio Zhou
-* Sara Brolli
-
-
-Altri membri che non lavorano più la progetto
-* Andrian Leah
-* Matteo Barato
-* Mattia Biondi
+* Giulio  Zhou
+* Sara    Brolli
+* Matteo  Barato
 * Alessio Tosto
+
+Altri membri che hanno lavorato al progetto
+* Andrian Leah
+* Mattia  Biondi
 
 
 ----------------------------------------------------
 II) Compilazione ed esecuzione del codice sorgente
 ----------------------------------------------------
-Il codice sorgente può essere compilato tramite il comando make.
+Il codice sorgente del kernel può essere compilato tramite il comando make nella
+cartella principale.
 L'unica dipendenza è la libreria uArm.
 Una volta eseguita la compilazione, si otterranno i file
 - kernel.elf.core.uarm
 - kernel.elf.stab.uarm
 
+I sorgenti dei test possono essere compilati con il comando make nella rispettiva
+cartella "test".
+Per ottenere il tape da inserire in uArm bisogna eseguire il comando:
+uarm-mkdev -t nome_tape.uarm test1 test2 ...
+dove test1 test2 ... sono i file prodotti dal make precedentemente eseguito.
+
+NOTE:
+- Per poter far partire più processi utente è necessario concatenare i file
+di test e NON creare più tape.
+- I test necessitano di un backing store device da inserire come disk 0,
+    ottenibile tramite il comando: uarm-mkdev -d nome_disco0.uarm
+- Alcuni test (es. diskTest.c) necessitano di una memoria secondaria, avente una
+    dimensione adeguata, da inserire come disk 1.
+    La dimensione del disco si può definire specificando il numero di cilindri,
+    testine e settori del disco.
+    Per esempio, un disco ragionevole potrebbe essere:
+        uarm-mkdev -d nome_disco0.uarm 50 49 48
+- pinterTest.c non testabile
 
 III) Istruzioni al codice sorgente
 ----------------------------------------------------

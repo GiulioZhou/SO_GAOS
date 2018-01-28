@@ -6,154 +6,160 @@ extern pcb_t *current_process;
 extern cputime_t last_ldst;
 
 static void (* sc_callbacks[])() = {
-    sys1_CREATEPROCESS,
-    sys2_TERMINATEPROCESS,
-    sys3_SEMOP,
-    sys4_SPECSYSHDL,
-    sys5_SPECTLBHDL,
-    sys6_SPECPGMTHDL,
-    sys7_EXITTRAP,
-    sys8_GETCPUTIME,
-    sys9_WAITCLOCK,
-    sys10_IODEVOP,
-    sys11_GETPID
+	sys1_CREATEPROCESS,
+	sys2_TERMINATEPROCESS,
+	sys3_SEMOP,
+	sys4_SPECSYSHDL,
+	sys5_SPECTLBHDL,
+	sys6_SPECPGMTHDL,
+	sys7_EXITTRAP,
+	sys8_GETCPUTIME,
+	sys9_WAITCLOCK,
+	sys10_IODEVOP,
+	sys11_GETPID
 };
 
 void update_usr_time(pcb_t *p, cputime_t exc_start) {
-    if (p && p->p_pid) {
-        p->p_usr_time+= exc_start - last_ldst;
-    }
+	if (p && p->p_pid) {
+		p->p_usr_time+= exc_start - last_ldst;
+		p->p_slice_time-= exc_start - last_ldst;
+	}
 }
 
 void update_sys_time(pcb_t *p, cputime_t exc_start) {
-    if (p && p->p_pid) {
-        p->p_sys_time+= getTODLO() - exc_start;
-    }
+	if (p && p->p_pid) {
+		p->p_sys_time+= getTODLO() - exc_start;
+		p->p_slice_time-= getTODLO() - exc_start;
+	}
 }
 
 
 void passup(state_t *old_area, uint exc_id, uint exc_old_id, uint flag) {
-    // If the callback is set, call it, otherwise kill the process
-    if (current_process->p_flags & flag) {
+	// If the callback is set, call it, otherwise kill the process
+	if (current_process->p_flags & flag) {
 
-        uint cause = CAUSE_EXCCODE_GET(old_area->CP15_Cause);
+		memaddr bad_addr = getBadVAddr();
 
-        // Move the old area state into the exception vector old area
-        memcpy(&current_process->p_excpvec[exc_old_id], old_area,
-                sizeof(state_t));
+		uint cause = CAUSE_EXCCODE_GET(old_area->CP15_Cause);
 
-        // Set the cause to a1
-        current_process->p_excpvec[exc_id].a1 = cause;
+		// Move the old area state into the exception vector old area
+		memcpy(&current_process->p_excpvec[exc_old_id], old_area,
+			   sizeof(state_t));
 
-        // Move the callback state to the current process state
-        memcpy(&current_process->p_s, &current_process->p_excpvec[exc_id],
-                sizeof(state_t));
+		// Set the cause to a1
+		current_process->p_excpvec[exc_id].a1 = cause;
+		current_process->p_excpvec[exc_id].a2 = bad_addr;
 
-    } else {
-        sys2_TERMINATEPROCESS(0, 0, 0);
-    }
+		// Move the callback state to the current process state
+		memcpy(&current_process->p_s, &current_process->p_excpvec[exc_id],
+			   sizeof(state_t));
+
+	} else {
+		tprint("Exception handler hasn't been initialized\n");
+		sys2_TERMINATEPROCESS(0, 0, 0);
+	}
 }
 
 
 
 void excHandleTLB() {
-    cputime_t exc_start = getTODLO();
-    update_usr_time(current_process, exc_start);
+	cputime_t exc_start = getTODLO();
+	update_usr_time(current_process, exc_start);
 
-    passup((state_t *) TLB_OLDAREA, EXCP_TLB_NEW, EXCP_TLB_OLD, PCB_FLAG_TLB_5);
+	passup((state_t *) TLB_OLDAREA, EXCP_TLB_NEW, EXCP_TLB_OLD, PCB_FLAG_TLB_5);
 
-    update_sys_time(current_process, exc_start);
-    scheduler();
+	update_sys_time(current_process, exc_start);
+	scheduler();
 }
 
 void excHandlePGMT() {
+	cputime_t exc_start = getTODLO();
+	update_usr_time(current_process, exc_start);
 
-    cputime_t exc_start = getTODLO();
-    update_usr_time(current_process, exc_start);
+	passup((state_t *) PGMTRAP_OLDAREA, EXCP_PGMT_NEW, EXCP_PGMT_OLD, PCB_FLAG_PGT_6);
 
-    passup((state_t *) PGMTRAP_OLDAREA, EXCP_PGMT_NEW, EXCP_PGMT_OLD, PCB_FLAG_PGT_6);
-
-    update_sys_time(current_process, exc_start);
-    scheduler();
+	update_sys_time(current_process, exc_start);
+	scheduler();
 }
 
 void passup_sysbp() {
-    passup((state_t *) SYSBK_OLDAREA, EXCP_SYS_NEW, EXCP_SYS_OLD, PCB_FLAG_SYS_4);
+	passup((state_t *) SYSBK_OLDAREA, EXCP_SYS_NEW, EXCP_SYS_OLD, PCB_FLAG_SYS_4);
 }
 
 void excHandleSYSBP() {
-    cputime_t exc_start = getTODLO();
-    update_usr_time(current_process, exc_start);
+	cputime_t exc_start = getTODLO();
+	update_usr_time(current_process, exc_start);
 
-    // Update current process state
-    memcpy(&current_process->p_s, (void *) SYSBK_OLDAREA, sizeof(state_t));
+	// Update current process state
+	memcpy(&current_process->p_s, (void *) SYSBK_OLDAREA, sizeof(state_t));
 
-    // Get the syscall number
-    int syscall = current_process->p_s.a1;
+	// Get the syscall number
+	int syscall = current_process->p_s.a1;
 
-    // Save the current process for later
-    pcb_t *proc = current_process;
+	// Save the current process for later
+	pcb_t *proc = current_process;
 
-    if (syscall < 1) {
-        // Invali syscall
-        sys2_TERMINATEPROCESS(0, 0, 0);
+	// Get the cause and handle the syscall
+	uint cause = CAUSE_EXCCODE_GET(current_process->p_s.CP15_Cause);
+	state_t ps = current_process->p_s;
 
-    } else if (syscall > SYSCALL_MAX) {
-        // Syscall not defined (yet)
-        passup_sysbp();
+	switch (cause) {
+		case EXC_SYSCALL:
+			if (syscall < 1) {
+				// Invali syscall
+				tprint("Invalid syscall\n");
+				sys2_TERMINATEPROCESS(0, 0, 0);
 
-    } else if (syscall < SYSCALL_MAX && (current_process->p_s.cpsr & 0x1F) == STATUS_USER_MODE) {
+			} else if (syscall > SYSCALL_MAX) {
+				passup_sysbp();
 
-        // User Mode cannot call these syscalls, so we throw a pgmtrap exception
-        state_t *old_pgmtrap = (state_t *) PGMTRAP_OLDAREA;
-        state_t *old_sysbp = (state_t *) SYSBK_OLDAREA;
-		memcpy(old_pgmtrap, old_sysbp, sizeof(state_t));
-		old_pgmtrap->CP15_Cause = CAUSE_EXCCODE_SET(old_pgmtrap->CP15_Cause, EXC_RESERVEDINSTR);
+			} else if ((current_process->p_s.cpsr & 0x1F) == STATUS_USER_MODE) {
 
-        passup((state_t *) PGMTRAP_OLDAREA, EXCP_PGMT_NEW, EXCP_PGMT_OLD, PCB_FLAG_PGT_6);
+				// User Mode cannot call these syscalls, so we throw a pgmtrap exception
+				state_t *old_pgmtrap = (state_t *) PGMTRAP_OLDAREA;
+				state_t *old_sysbp = (state_t *) SYSBK_OLDAREA;
+				memcpy(old_pgmtrap, old_sysbp, sizeof(state_t));
+				old_pgmtrap->CP15_Cause = CAUSE_EXCCODE_SET(old_pgmtrap->CP15_Cause, EXC_RESERVEDINSTR);
 
-    } else {
-        // Get the cause and handle the syscall
-        uint cause = CAUSE_EXCCODE_GET(current_process->p_s.CP15_Cause);
-        state_t ps = current_process->p_s;
+				passup((state_t *) PGMTRAP_OLDAREA, EXCP_PGMT_NEW, EXCP_PGMT_OLD, PCB_FLAG_PGT_6);
 
-        switch (cause) {
-            case EXC_SYSCALL:
-                sc_callbacks[syscall-1](ps.a2, ps.a3, ps.a4);
-                break;
-            case EXC_BREAKPOINT:
-                passup_sysbp();
-                break;
-            default:
-                dprint("Cause is a fucking liar\n");
-                PANIC();
-        }
-    }
-
-    update_sys_time(proc, exc_start);
-    scheduler();
+			} else {
+				sc_callbacks[syscall-1](ps.a2, ps.a3, ps.a4);
+			}
+			break;
+		case EXC_BREAKPOINT:
+			passup_sysbp();
+			break;
+		default:
+			tprint("Unknown exception\n");
+			PANIC();
+	}
+	update_sys_time(proc, exc_start);
+	scheduler();
 }
 
 void excHandleInterrupt() {
-    cputime_t exc_start = getTODLO();
-    update_usr_time(current_process, exc_start);
+	cputime_t exc_start = getTODLO();
+	update_usr_time(current_process, exc_start);
 
-    if (current_process) {
-        // Update current process state
-        memcpy(&current_process->p_s, (void *) INT_OLDAREA, sizeof(state_t));
-        current_process->p_s.pc-= 4;
-    }
+	if (current_process) {
+		// Update current process state
+		memcpy(&current_process->p_s, (void *) INT_OLDAREA, sizeof(state_t));
+		current_process->p_s.pc-= 4;
+	}
 
-    uint cause = getCAUSE();
-    if (CAUSE_IP_GET(cause, IL_IPI))      ;
-    if (CAUSE_IP_GET(cause, IL_CPUTIMER)) ;
-    if (CAUSE_IP_GET(cause, IL_TIMER))    handleTimer();
-    if (CAUSE_IP_GET(cause, IL_DISK))     ;
-    if (CAUSE_IP_GET(cause, IL_TAPE))     ;
-    if (CAUSE_IP_GET(cause, IL_ETHERNET)) ;
-    if (CAUSE_IP_GET(cause, IL_PRINTER))  ;
-    if (CAUSE_IP_GET(cause, IL_TERMINAL)) handleTerminal();
 
-    // We do not call update_sys_time because this exc isn't throwed by the proc
-    scheduler();
+	uint cause = getCAUSE();
+
+	if (CAUSE_IP_GET(cause, IL_CPUTIMER)) ;
+	if (CAUSE_IP_GET(cause, IL_IPI))      ;
+	if (CAUSE_IP_GET(cause, IL_TIMER))    handleTimer();
+	if (CAUSE_IP_GET(cause, IL_DISK))     handleDevice(IL_DISK, semaphores.dev_disk);
+	if (CAUSE_IP_GET(cause, IL_TAPE))     handleDevice(IL_TAPE, semaphores.dev_tape);
+	if (CAUSE_IP_GET(cause, IL_ETHERNET)) ;
+	if (CAUSE_IP_GET(cause, IL_PRINTER))  handleDevice(IL_PRINTER, semaphores.dev_printer);
+	if (CAUSE_IP_GET(cause, IL_TERMINAL)) handleTerminal();
+
+	// We do not call update_sys_time because this exc isn't throwed by the proc
+	scheduler();
 }
